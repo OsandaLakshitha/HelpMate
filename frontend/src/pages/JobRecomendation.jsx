@@ -217,11 +217,11 @@ function JobRecomendation() {
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-10 mt-15">
-      <section className="bg-gradient-to-br from-teal-50 to-cyan-50 rounded-2xl p-8 mb-8">
+      <section className="bg-gradient-to-br from-teal-50 to-cyan-50 rounded-2xl p-8 mb-8 animate-fade-in-up">
         <div className="max-w-6xl mx-auto">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             {/* Left Content */}
-            <div>
+            <div className="animate-slide-in-left">
               <div className="inline-flex items-center space-x-2 bg-teal-100 text-teal-700 px-4 py-2 rounded-full text-sm font-medium mb-6">
                 <svg
                   className="w-4 h-4"
@@ -315,7 +315,7 @@ function JobRecomendation() {
         >
           <div className="max-w-2xl mx-auto">
             <div className="text-center mb-6">
-              <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-r from-teal-500 to-cyan-500 rounded-full flex items-center justify-center">
+              <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-r from-teal-500 to-cyan-500 rounded-full flex items-center justify-center hover:animate-bounce transition-all duration-300">
                 <svg
                   className="w-8 h-8 text-white"
                   fill="none"
@@ -410,7 +410,7 @@ function JobRecomendation() {
                 <button
                   onClick={uploadAndGetRecommendations}
                   disabled={loading || !file}
-                  className="inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-gradient-to-r from-teal-600 to-cyan-600 text-white font-medium shadow-lg hover:shadow-xl hover:brightness-105 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300"
+                  className="inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-gradient-to-r from-teal-600 to-cyan-600 text-white font-medium shadow-lg hover:shadow-xl hover:brightness-105 hover:-translate-y-1 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300"
                 >
                   {loading ? (
                     <>
@@ -533,7 +533,7 @@ function JobRecomendation() {
         skillGaps.length > 0 ||
         careerPaths.length > 0 ||
         recommendations.length > 0) && (
-        <div className="mt-16 space-y-12">
+        <div className="mt-16 space-y-12 animate-fade-in-up">
           {/* Section Header */}
           <div className="text-center">
             <h2 className="text-3xl md:text-4xl font-bold text-slate-900 mb-3">
@@ -574,7 +574,7 @@ function JobRecomendation() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-stagger-fade-in">
                 <div className="bg-white rounded-xl p-6 shadow-sm border border-white/50">
                   <div className="flex items-center gap-2 mb-4">
                     <svg
@@ -889,11 +889,11 @@ function JobRecomendation() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 animate-stagger">
             {recommendations.map((r, idx) => (
               <article
                 key={r.id || idx}
-                className="p-4 rounded-lg shadow-sm border-l-4 border-transparent hover:shadow-md transition bg-white"
+                className="p-4 rounded-lg shadow-sm border-l-4 border-transparent hover:shadow-lg hover:-translate-y-1 transition-all duration-300 bg-white"
                 style={{
                   borderLeftColor: `hsl(${(idx * 73) % 360}deg 70% 55%)`,
                 }}
@@ -967,7 +967,7 @@ function JobRecomendation() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-stagger">
           {/* Feedback Card 1 */}
           <div className="bg-white rounded-xl p-6 shadow-sm hover:shadow-md transition-all duration-300 border border-slate-100">
             <div className="flex items-center space-x-1 mb-4">
