@@ -45,7 +45,7 @@ function JobRecomendation() {
   function onDragOver(e) {
     e.preventDefault();
   }
-  /*
+
   // Mock data function for testing without backend
   function loadMockData() {
     setError("");
@@ -165,7 +165,7 @@ function JobRecomendation() {
       );
       setLoading(false);
     }, 1500); // 1.5 second delay to simulate API call
-  } */
+  }
 
   async function uploadAndGetRecommendations() {
     setError("");
@@ -455,7 +455,7 @@ function JobRecomendation() {
               </div>
 
               {/* Mock Data Button for Testing */}
-              {/*/
+
               <div className="flex justify-center mt-4">
                 <button
                   onClick={loadMockData}
@@ -478,7 +478,6 @@ function JobRecomendation() {
                   <span>Preview with Mock Data</span>
                 </button>
               </div>
-           */}
 
               <div className="text-center">
                 <p className="text-xs text-slate-500">
