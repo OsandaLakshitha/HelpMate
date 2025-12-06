@@ -2,7 +2,42 @@ const express = require('express');
 const router = express.Router();
 const { PricingTier, PricingConfig } = require('../models/Pricing');
 const FAQ = require('../models/FAQ');
-const { authenticateAdmin } = require('../middleware/auth');
+const { protect, adminOnly } = require('../middleware/auth');
+
+// Helper function to check admin auth (since we might not have a full controller)
+const authenticateAdmin = async (req, res, next) => {
+  try {
+    // Simple admin check - you can enhance this
+    if (!req.headers.authorization) {
+      return res.status(401).json({
+        success: false,
+        message: 'No authorization token provided',
+      });
+    }
+
+    const token = req.headers.authorization.split(' ')[1];
+    const jwt = require('jsonwebtoken');
+    const User = require('../models/User');
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const user = await User.findById(decoded.id);
+
+    if (!user || user.role !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. Admin privileges required.',
+      });
+    }
+
+    req.user = user;
+    next();
+  } catch (error) {
+    return res.status(401).json({
+      success: false,
+      message: 'Not authorized',
+    });
+  }
+};
 
 // @route   GET /api/pricing
 // @desc    Get all pricing data (tiers, config, FAQs)
@@ -13,8 +48,8 @@ router.get('/', async (req, res) => {
     const config = await PricingConfig.findOne();
     const faqs = await FAQ.find({ isActive: true, category: 'pricing' }).sort({ sortOrder: 1 });
 
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       data: {
         tiers,
         config: config || {
@@ -53,17 +88,17 @@ router.post('/tiers', authenticateAdmin, async (req, res) => {
     const { name, description, monthlyPrice, annualPrice, gradient, popular, features, sortOrder } = req.body;
 
     if (!name || !description || monthlyPrice === undefined || annualPrice === undefined) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Please provide all required fields' 
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide all required fields'
       });
     }
 
     const existingTier = await PricingTier.findOne({ name });
     if (existingTier) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Pricing tier with this name already exists' 
+      return res.status(400).json({
+        success: false,
+        message: 'Pricing tier with this name already exists'
       });
     }
 
@@ -84,10 +119,10 @@ router.post('/tiers', authenticateAdmin, async (req, res) => {
 
     await newTier.save();
 
-    res.status(201).json({ 
-      success: true, 
+    res.status(201).json({
+      success: true,
       message: 'Pricing tier created successfully',
-      tier: newTier 
+      tier: newTier
     });
   } catch (error) {
     console.error('Error creating pricing tier:', error);
@@ -103,7 +138,7 @@ router.put('/tiers/:id', authenticateAdmin, async (req, res) => {
     const { name, description, monthlyPrice, annualPrice, gradient, popular, features, sortOrder, isActive } = req.body;
 
     const tier = await PricingTier.findById(req.params.id);
-    
+
     if (!tier) {
       return res.status(404).json({ success: false, message: 'Pricing tier not found' });
     }
@@ -124,10 +159,10 @@ router.put('/tiers/:id', authenticateAdmin, async (req, res) => {
 
     await tier.save();
 
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       message: 'Pricing tier updated successfully',
-      tier 
+      tier
     });
   } catch (error) {
     console.error('Error updating pricing tier:', error);
@@ -141,7 +176,7 @@ router.put('/tiers/:id', authenticateAdmin, async (req, res) => {
 router.delete('/tiers/:id', authenticateAdmin, async (req, res) => {
   try {
     const tier = await PricingTier.findById(req.params.id);
-    
+
     if (!tier) {
       return res.status(404).json({ success: false, message: 'Pricing tier not found' });
     }
@@ -149,9 +184,9 @@ router.delete('/tiers/:id', authenticateAdmin, async (req, res) => {
     tier.isActive = false;
     await tier.save();
 
-    res.json({ 
-      success: true, 
-      message: 'Pricing tier deleted successfully' 
+    res.json({
+      success: true,
+      message: 'Pricing tier deleted successfully'
     });
   } catch (error) {
     console.error('Error deleting pricing tier:', error);
@@ -165,7 +200,7 @@ router.delete('/tiers/:id', authenticateAdmin, async (req, res) => {
 router.get('/config', async (req, res) => {
   try {
     let config = await PricingConfig.findOne();
-    
+
     if (!config) {
       config = new PricingConfig({
         comparisonTable: [],
@@ -191,7 +226,7 @@ router.put('/config', authenticateAdmin, async (req, res) => {
     const { comparisonTable, annualDiscount, trialDays, moneyBackDays } = req.body;
 
     let config = await PricingConfig.findOne();
-    
+
     if (!config) {
       config = new PricingConfig(req.body);
     } else {
@@ -203,10 +238,10 @@ router.put('/config', authenticateAdmin, async (req, res) => {
 
     await config.save();
 
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       message: 'Config updated successfully',
-      config 
+      config
     });
   } catch (error) {
     console.error('Error updating config:', error);
@@ -235,9 +270,9 @@ router.post('/faqs', authenticateAdmin, async (req, res) => {
     const { question, answer, category, sortOrder } = req.body;
 
     if (!question || !answer) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Question and answer are required' 
+      return res.status(400).json({
+        success: false,
+        message: 'Question and answer are required'
       });
     }
 
@@ -250,10 +285,10 @@ router.post('/faqs', authenticateAdmin, async (req, res) => {
 
     await faq.save();
 
-    res.status(201).json({ 
-      success: true, 
+    res.status(201).json({
+      success: true,
       message: 'FAQ created successfully',
-      faq 
+      faq
     });
   } catch (error) {
     console.error('Error creating FAQ:', error);
@@ -267,7 +302,7 @@ router.post('/faqs', authenticateAdmin, async (req, res) => {
 router.put('/faqs/:id', authenticateAdmin, async (req, res) => {
   try {
     const faq = await FAQ.findById(req.params.id);
-    
+
     if (!faq) {
       return res.status(404).json({ success: false, message: 'FAQ not found' });
     }
@@ -282,10 +317,10 @@ router.put('/faqs/:id', authenticateAdmin, async (req, res) => {
 
     await faq.save();
 
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       message: 'FAQ updated successfully',
-      faq 
+      faq
     });
   } catch (error) {
     console.error('Error updating FAQ:', error);
@@ -299,7 +334,7 @@ router.put('/faqs/:id', authenticateAdmin, async (req, res) => {
 router.delete('/faqs/:id', authenticateAdmin, async (req, res) => {
   try {
     const faq = await FAQ.findById(req.params.id);
-    
+
     if (!faq) {
       return res.status(404).json({ success: false, message: 'FAQ not found' });
     }
@@ -307,9 +342,9 @@ router.delete('/faqs/:id', authenticateAdmin, async (req, res) => {
     faq.isActive = false;
     await faq.save();
 
-    res.json({ 
-      success: true, 
-      message: 'FAQ deleted successfully' 
+    res.json({
+      success: true,
+      message: 'FAQ deleted successfully'
     });
   } catch (error) {
     console.error('Error deleting FAQ:', error);
