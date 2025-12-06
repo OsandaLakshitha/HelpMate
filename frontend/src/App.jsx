@@ -38,6 +38,8 @@ import UserWellness from "./pages/user/Wellness";
 import UserFiles from "./pages/user/Files";
 import UserProfile from "./pages/user/Profile";
 import UserSettings from "./pages/user/Settings";
+import JobRecomendation from "./pages/user/JobRecomendation";
+import PeerMatching from "./pages/user/PeerMatching";
 
 // 404 Page
 import NotFound from "./pages/NotFound";
@@ -93,6 +95,8 @@ function App() {
             <Route path="files" element={<UserFiles />} />
             <Route path="profile" element={<UserProfile />} />
             <Route path="settings" element={<UserSettings />} />
+            <Route path="job-recommendation" element={<JobRecomendation />} />
+            <Route path="peer-matching" element={<PeerMatching />} />
           </Route>
 
           {/* 404 Route */}

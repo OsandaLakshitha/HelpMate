@@ -1,5 +1,5 @@
 import React, { useState, useRef } from "react";
-import Img_hero from "../assets/Images/Img_hero.jpg";
+import Img_hero from "../../assets/Images/Img_hero.jpg";
 
 // Job Recommendation page
 // - API endpoint used: POST /api/recommendations
