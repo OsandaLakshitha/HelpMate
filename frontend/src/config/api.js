@@ -17,6 +17,7 @@ const getApiUrl = () => {
 export const API_URL = getApiUrl();
 
 export const endpoints = {
+  
   // Auth endpoints
   auth: {
     login: `${API_URL}/api/auth/login`,
