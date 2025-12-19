@@ -37,6 +37,11 @@ import UserSettings from './pages/user/Settings';
 // 404 Page
 import NotFound from './pages/NotFound';
 
+
+// Shakya
+import TestCrudPage from './features/test-crud/pages/TestCrudPage';
+
+
 function App() {
   return (
     <Router>
@@ -92,6 +97,10 @@ function App() {
 
           {/* 404 Route */}
           <Route path="*" element={<NotFound />} />
+
+          
+          <Route path="/test-crud" element={<TestCrudPage />} />
+
         </Routes>
       </AuthProvider>
     </Router>

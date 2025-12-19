@@ -1,125 +1,190 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
-import { API_URL } from '../config/api';
+// Fake AuthContext.jsx to bypass authentication during development
 
-const AuthContext = createContext();
+import { createContext, useState, useContext } from 'react';
 
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
-};
+const AuthContext = createContext(null);
+
+export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [token, setToken] = useState(localStorage.getItem('token'));
+  // 1. ALWAYS start with a fake user (Bypasses login screen)
+  const [user, setUser] = useState({
+    id: 999,
+    name: "Developer",
+    email: "dev@local",
+    role: "admin" // Gives you access to everything
+  });
 
-  useEffect(() => {
-    if (token) {
-      fetchUser();
-    } else {
-      setLoading(false);
-    }
-  }, [token]);
+  // 2. Loading is always false (No waiting for backend)
+  const loading = false;
 
-  const fetchUser = async () => {
-    try {
-      const response = await fetch(`${API_URL}/api/auth/me`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      const data = await response.json();
-
-      if (data.success) {
-        setUser(data.user);
-      } else {
-        logout();
-      }
-    } catch (error) {
-      console.error('Fetch user error:', error);
-      logout();
-    } finally {
-      setLoading(false);
-    }
+  // 3. Fake Login function (does nothing but success)
+  const login = async () => {
+    console.log("Mock login success");
+    return { success: true };
   };
 
-  const login = async (email, password) => {
-    try {
-      const response = await fetch(`${API_URL}/api/auth/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, password }),
-      });
-
-      const data = await response.json();
-
-      if (data.success) {
-        localStorage.setItem('token', data.token);
-        setToken(data.token);
-        setUser(data.user);
-        return { success: true, user: data.user };
-      } else {
-        return { success: false, message: data.message };
-      }
-    } catch (error) {
-      console.error('Login error:', error);
-      return { success: false, message: 'Network error. Please try again.' };
-    }
-  };
-
-  const register = async (userData) => {
-    try {
-      const response = await fetch(`${API_URL}/api/auth/register`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(userData),
-      });
-
-      const data = await response.json();
-
-      if (data.success) {
-        localStorage.setItem('token', data.token);
-        setToken(data.token);
-        setUser(data.user);
-        return { success: true, user: data.user };
-      } else {
-        return { success: false, message: data.message };
-      }
-    } catch (error) {
-      console.error('Register error:', error);
-      return { success: false, message: 'Network error. Please try again.' };
-    }
-  };
-
+  // 4. Fake Logout
   const logout = () => {
-    localStorage.removeItem('token');
-    setToken(null);
-    setUser(null);
+    console.log("Mock logout - reloading page");
+    window.location.reload();
   };
 
-  const updateUser = (updatedUser) => {
-    setUser(updatedUser);
+  // 5. Fake Register
+  const register = async () => {
+    return { success: true };
   };
 
   const value = {
     user,
     loading,
-    token,
     login,
-    register,
     logout,
-    updateUser,
-    isAuthenticated: !!user,
-    isAdmin: user?.role === 'admin',
+    register,
+    isAuthenticated: true, // Always true
+    isAdmin: true          // Always true
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
+
+export default AuthProvider;
+
+
+
+
+
+// ------------------
+
+
+// Real AuthContext.jsx for production use (Uncomment when backend is ready)
+
+// import { createContext, useState, useContext, useEffect } from 'react';
+// import api from '../config/api'; 
+
+// const AuthContext = createContext(null);
+
+// 1. Export Hook (Named Export)
+// export const useAuth = () => {
+//   const context = useContext(AuthContext);
+//   if (!context) {
+//     throw new Error('useAuth must be used within an AuthProvider');
+//   }
+//   return context;
+// };
+
+// 2. Export Provider (Named Export)
+// export const AuthProvider = ({ children }) => {
+//   const [user, setUser] = useState(null);
+//   const [loading, setLoading] = useState(true);
+//   const [token, setToken] = useState(localStorage.getItem('token'));
+
+//   useEffect(() => {
+//     if (token) {
+//       fetchUser();
+//     } else {
+//       setLoading(false);
+//     }
+//   }, [token]);
+
+//   const fetchUser = async () => {
+//     try {
+      // --- REAL BACKEND CALL (Uncomment when Backend Auth is ready) ---
+      // const response = await api.get('/users/me');
+      // setUser(response.data);
+
+      // --- TEMPORARY DEV FIX ---
+      // Since the backend '/users/me' doesn't exist yet, we simulate a success
+      // so you can access the protected Dashboard and test your CRUD.
+      // console.log("Development Mode: Mocking User Fetch");
+      // setUser({ 
+      //   id: 1, 
+      //   email: "dev@helpmate.com", 
+      //   name: "Developer", 
+      //   role: "admin" 
+      // });
+
+    // } catch (error) {
+    //   console.error('Fetch user error:', error);
+      // Only logout if it's a real auth error (401), not a connection error
+  //     if (error.response && error.response.status === 401) {
+  //       logout();
+  //     }
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
+
+  // const login = async (email, password) => {
+  //   try {
+      // FastAPI OAuth2 expects FormData, not JSON
+      // const formData = new FormData();
+      // formData.append("username", email); // Note: FastAPI expects 'username' field
+      // formData.append("password", password);
+
+      // Post to standard FastAPI token endpoint
+      // const response = await api.post('/auth/token', formData);
+      
+      // FastAPI returns: { access_token: "...", token_type: "bearer" }
+      // const accessToken = response.data.access_token;
+
+      // localStorage.setItem('token', accessToken);
+      // setToken(accessToken);
+      
+      // After token is set, fetch user details
+  //     await fetchUser();
+      
+  //     return { success: true };
+  //   } catch (error) {
+  //     console.error('Login error:', error);
+  //     const message = error.response?.data?.detail || 'Network error. Please try again.';
+  //     return { success: false, message };
+  //   }
+  // };
+
+  // const register = async (userData) => {
+  //   try {
+  //     const response = await api.post('/auth/register', userData);
+      
+      // Assuming register logs you in automatically, or returns a token
+  //     if (response.data.access_token) {
+  //       localStorage.setItem('token', response.data.access_token);
+  //       setToken(response.data.access_token);
+  //       await fetchUser();
+  //     }
+      
+  //     return { success: true };
+  //   } catch (error) {
+  //     console.error('Register error:', error);
+  //     const message = error.response?.data?.detail || 'Registration failed.';
+  //     return { success: false, message };
+  //   }
+  // };
+
+  // const logout = () => {
+  //   localStorage.removeItem('token');
+  //   setToken(null);
+  //   setUser(null);
+  // };
+
+  // const updateUser = (updatedUser) => {
+  //   setUser(updatedUser);
+  // };
+
+  // const value = {
+  //   user,
+  //   loading,
+  //   token,
+  //   login,
+  //   register,
+  //   logout,
+  //   updateUser,
+  //   isAuthenticated: !!user,
+  //   isAdmin: user?.role === 'admin',
+  // };
+
+//   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+// };
+
+// 3. Default Export (Helps with HMR)
+// export default AuthProvider;

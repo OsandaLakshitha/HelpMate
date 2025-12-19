@@ -20,7 +20,7 @@ const getApiUrl = () => {
 export const API_URL = getApiUrl();
 
 // 2. Create the Axios Instance (The "api" object)
-// This is what we will use in our features (like test-crud)
+// This is the SINGLE shared instance used by all features
 const api = axios.create({
     baseURL: API_URL,
     headers: {
@@ -28,36 +28,19 @@ const api = axios.create({
     },
 });
 
-
-// Optional: Add an interceptor to attach tokens automatically (for Auth later)
-api.interceptors.request.use((config) => {
-    const token = localStorage.getItem('token'); // or however you store it
-    if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
+// 3. Interceptor to attach tokens automatically
+api.interceptors.request.use(
+    (config) => {
+        const token = localStorage.getItem('token');
+        if (token) {
+            config.headers.Authorization = `Bearer ${token}`;
+        }
+        return config;
+    },
+    (error) => {
+        return Promise.reject(error);
     }
-    return config;
-});
+);
 
-// 3. Export the axios instance as default
+// 4. Export the axios instance as default
 export default api;
-
-
-
-
-
-// 4. (Optional) Keep these for legacy code reference, 
-// but update paths to match your FastAPI routers.
-export const endpoints = {
-  auth: {
-    login: '/auth/login',      // Axios will append this to baseURL
-    register: '/auth/register',
-    me: '/auth/me',
-  },
-  // Use relative paths now because Axios handles the domain
-  admin: {
-    stats: '/admin/dashboard/stats',
-  },
-
-  
-
-};
