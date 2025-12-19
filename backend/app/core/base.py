@@ -18,7 +18,7 @@ from app.core.model import User
 
 
 #  test-crud module
-# from app.modules.test_crud.models.test_crud_db import TestCrudDB
+from app.modules.test_crud.models import TestItem
 
 # This tells SQLAlchemy: "Hey, there is a table called tasks"
 # from app.modules.scheduling.models.task_db import TaskDB
