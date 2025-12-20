@@ -1,5 +1,4 @@
 import React, { useState, useRef } from "react";
-import Img_hero from "../../assets/Images/Img_hero.jpg";
 
 // Job Recommendation page
 // - API endpoint used: POST /api/recommendations
@@ -217,14 +216,102 @@ function JobRecomendation() {
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-10 mt-15">
-      <section className="bg-gradient-to-br from-teal-50 to-cyan-50 rounded-2xl p-8 mb-8 animate-fade-in-up">
-        <div className="max-w-6xl mx-auto">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
-            {/* Left Content */}
+      <style>{`
+        @keyframes fadeInUp {
+          from {
+            opacity: 0;
+            transform: translateY(30px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        
+        @keyframes slideInLeft {
+          from {
+            opacity: 0;
+            transform: translateX(-50px);
+          }
+          to {
+            opacity: 1;
+            transform: translateX(0);
+          }
+        }
+        
+        @keyframes float {
+          0%, 100% {
+            transform: translateY(0px);
+          }
+          50% {
+            transform: translateY(-20px);
+          }
+        }
+        
+        @keyframes pulse {
+          0%, 100% {
+            opacity: 1;
+          }
+          50% {
+            opacity: 0.5;
+          }
+        }
+        
+        @keyframes scaleIn {
+          from {
+            opacity: 0;
+            transform: scale(0.9);
+          }
+          to {
+            opacity: 1;
+            transform: scale(1);
+          }
+        }
+        
+        .animate-fade-in-up {
+          animation: fadeInUp 0.6s ease-out;
+        }
+        
+        .animate-slide-in-left {
+          animation: slideInLeft 0.8s ease-out;
+        }
+        
+        .animate-float {
+          animation: float 3s ease-in-out infinite;
+        }
+        
+        .animate-pulse-slow {
+          animation: pulse 2s ease-in-out infinite;
+        }
+        
+        .animate-scale-in {
+          animation: scaleIn 0.5s ease-out;
+        }
+        
+        .hover-lift {
+          transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .hover-lift:hover {
+          transform: translateY(-5px);
+          box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        }
+      `}</style>
+      <section className="bg-gradient-to-br from-teal-50 to-cyan-50 rounded-2xl p-8 mb-8 animate-fade-in-up overflow-hidden relative">
+        {/* Animated background elements */}
+        <div className="absolute top-0 right-0 w-64 h-64 bg-teal-200 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-float"></div>
+        <div
+          className="absolute bottom-0 left-0 w-64 h-64 bg-cyan-200 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-float"
+          style={{ animationDelay: "1s" }}
+        ></div>
+
+        <div className="max-w-4xl mx-auto relative z-10">
+          <div className="text-center">
+            {/* Animated Icon */}
             <div className="animate-slide-in-left">
-              <div className="inline-flex items-center space-x-2 bg-teal-100 text-teal-700 px-4 py-2 rounded-full text-sm font-medium mb-6">
+              <div className="inline-flex items-center space-x-2 bg-teal-100 text-teal-700 px-4 py-2 rounded-full text-sm font-medium mb-6 hover-lift">
                 <svg
-                  className="w-4 h-4"
+                  className="w-4 h-4 animate-pulse-slow"
                   fill="currentColor"
                   viewBox="0 0 20 20"
                 >
@@ -248,10 +335,34 @@ function JobRecomendation() {
                 job matches powered by AI.
               </p>
 
-              <div className="flex flex-col sm:flex-row gap-4">
+              {/* Animated Stats */}
+              <div className="grid grid-cols-3 gap-4 mb-8 animate-scale-in">
+                <div className="text-center p-4 bg-white rounded-xl shadow-sm hover-lift">
+                  <div className="text-2xl font-bold text-teal-600">98%</div>
+                  <div className="text-xs text-slate-600">Accuracy</div>
+                </div>
+                <div
+                  className="text-center p-4 bg-white rounded-xl shadow-sm hover-lift"
+                  style={{ animationDelay: "0.1s" }}
+                >
+                  <div className="text-2xl font-bold text-cyan-600">5K+</div>
+                  <div className="text-xs text-slate-600">Jobs Analyzed</div>
+                </div>
+                <div
+                  className="text-center p-4 bg-white rounded-xl shadow-sm hover-lift"
+                  style={{ animationDelay: "0.2s" }}
+                >
+                  <div className="text-2xl font-bold text-emerald-600">
+                    2min
+                  </div>
+                  <div className="text-xs text-slate-600">Avg Analysis</div>
+                </div>
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <a
                   href="#upload"
-                  className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-teal-600 to-cyan-600 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl hover:brightness-105 transition-all duration-300"
+                  className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-gradient-to-r from-teal-600 to-cyan-600 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl hover:brightness-105 hover:scale-105 transition-all duration-300"
                 >
                   <svg
                     className="w-5 h-5"
@@ -268,12 +379,11 @@ function JobRecomendation() {
                   </svg>
                   Upload Your CV
                 </a>
-
                 <button
                   onClick={() => {
                     if (inputRef.current) inputRef.current.click();
                   }}
-                  className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-white border border-slate-200 text-slate-700 rounded-xl font-semibold hover:bg-slate-50 transition-all duration-300"
+                  className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-white border-2 border-slate-200 text-slate-700 rounded-xl font-semibold hover:bg-slate-50 hover:border-teal-300 hover:scale-105 transition-all duration-300"
                 >
                   <svg
                     className="w-5 h-5"
@@ -292,30 +402,23 @@ function JobRecomendation() {
                 </button>
               </div>
             </div>
-            {/* Right Content - Image */}
-            <div className="relative">
-              <div>
-                <img
-                  src={Img_hero}
-                  alt="Job Recommendation Analysis"
-                  className="w-full h-160 rounded-xl"
-                />
-              </div>
-            </div>
           </div>
         </div>
       </section>
 
-      <section>
+      <section
+        className="animate-fade-in-up"
+        style={{ animationDelay: "0.3s" }}
+      >
         <div
           id="upload"
-          className="border-2 border-dashed border-teal-300 rounded-xl p-8 bg-gradient-to-br from-white to-teal-50/50 hover:border-teal-400 transition-all duration-300 shadow-sm hover:shadow-md"
+          className="border-2 border-dashed border-teal-300 rounded-xl p-8 bg-gradient-to-br from-white to-teal-50/50 hover:border-teal-400 transition-all duration-300 shadow-sm hover:shadow-md hover-lift"
           onDrop={onDrop}
           onDragOver={onDragOver}
         >
           <div className="max-w-2xl mx-auto">
             <div className="text-center mb-6">
-              <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-r from-teal-500 to-cyan-500 rounded-full flex items-center justify-center hover:animate-bounce transition-all duration-300">
+              <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-r from-teal-500 to-cyan-500 rounded-full flex items-center justify-center animate-float shadow-lg">
                 <svg
                   className="w-8 h-8 text-white"
                   fill="none"
