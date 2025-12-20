@@ -53,15 +53,30 @@ exports.uploadAndAnalyzeCV = async (req, res) => {
     const allJobs = await jobApiService.fetchAllJobs(normalizedSkills);
 
     // STEP 4: Apply rule-based logic (using Rule Engine Service)
-    const rankedJobs = ruleEngineService.rankJobs(allJobs, normalizedSkills);
-    const skillGaps = ruleEngineService.identifySkillGaps(
-      normalizedSkills,
-      rankedJobs
-    );
+    // First, generate career paths based on skills
     const careerPaths = ruleEngineService.generateCareerPaths(
       normalizedSkills,
       basicInfo.experience
     );
+
+    // Then rank jobs based on user skills
+    const rankedJobs = ruleEngineService.rankJobs(allJobs, normalizedSkills);
+
+    // Finally, identify skill gaps based on both jobs and career paths
+    const skillGaps = ruleEngineService.identifySkillGaps(
+      normalizedSkills,
+      rankedJobs,
+      careerPaths
+    );
+
+    // Sanitize job recommendations to ensure valid dates
+    const sanitizedJobs = rankedJobs.map((job) => ({
+      ...job,
+      postedDate:
+        job.postedDate && !isNaN(new Date(job.postedDate).getTime())
+          ? new Date(job.postedDate)
+          : new Date(),
+    }));
 
     // Save to database
     const cvAnalysis = new CVAnalysis({
@@ -72,7 +87,7 @@ exports.uploadAndAnalyzeCV = async (req, res) => {
       analysis: analysis,
       skillGaps: skillGaps,
       careerPaths: careerPaths,
-      jobRecommendations: rankedJobs,
+      jobRecommendations: sanitizedJobs,
     });
 
     await cvAnalysis.save();

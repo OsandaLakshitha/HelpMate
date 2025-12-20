@@ -1,10 +1,18 @@
 import React, { useState, useRef } from "react";
+import { useAuth } from "../../context/AuthContext";
+import { API_URL } from "../../config/api";
 
-// Job Recommendation page
-// - API endpoint used: POST /api/recommendations
-// - Each recommendation have: id, title, company, score, snippet, tags, url
+// Job Recommendation System Flow:
+// 1. User uploads PDF CV
+// 2. Backend extracts text from PDF (pdfExtractor.service.js)
+// 3. Backend matches skills from 8+ fields (skillMatcher.service.js)
+// 4. Backend normalizes skills (skillNormalizer.service.js)
+// 5. Backend fetches jobs from APIs (jobApi.service.js)
+// 6. Backend applies rule-based matching (ruleEngine.service.js)
+// 7. Backend returns: analysis, skillGaps, careerPaths, recommendations
 
 function JobRecomendation() {
+  const { token } = useAuth();
   const [file, setFile] = useState(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -13,9 +21,10 @@ function JobRecomendation() {
   const [skillGaps, setSkillGaps] = useState([]);
   const [careerPaths, setCareerPaths] = useState([]);
   const [successMessage, setSuccessMessage] = useState("");
+  const [analysisId, setAnalysisId] = useState(null);
   const inputRef = useRef(null);
 
-  const RECOMMEND_API_URL = "/api/recommendations";
+  const RECOMMEND_API_URL = `${API_URL}/api/recommendations`;
 
   function onFileChange(e) {
     setError("");
@@ -45,131 +54,15 @@ function JobRecomendation() {
     e.preventDefault();
   }
 
-  // Mock data function for testing without backend
-  function loadMockData() {
-    setError("");
-    setLoading(true);
-
-    // Simulate loading delay
-    setTimeout(() => {
-      // Mock CV Analysis
-      setCvAnalysis({
-        name: "John Doe",
-        skills: ["JavaScript", "React", "Node.js", "MongoDB", "CSS", "HTML"],
-        experience: "3 years of experience in full-stack development",
-        location: "San Francisco, CA",
-        contact: "john.doe@email.com",
-      });
-
-      // Mock Skill Gaps
-      setSkillGaps([
-        {
-          skill: "TypeScript",
-          importance: "High",
-          missing: true,
-          suggestions: [
-            "Take an online TypeScript course on Udemy or Coursera",
-            "Practice by converting existing JavaScript projects to TypeScript",
-            "Read the official TypeScript documentation",
-          ],
-        },
-        {
-          skill: "Docker",
-          importance: "Medium",
-          missing: true,
-          suggestions: [
-            "Learn Docker basics through Docker's official tutorials",
-            "Containerize your existing applications",
-            "Practice with Docker Compose for multi-container apps",
-          ],
-        },
-      ]);
-
-      // Mock Career Paths
-      setCareerPaths([
-        {
-          title: "Senior Frontend Developer",
-          description:
-            "Focus on advanced frontend technologies and team leadership",
-          steps: [
-            "Master TypeScript and advanced React patterns",
-            "Learn state management with Redux or Zustand",
-            "Gain experience in mentoring junior developers",
-            "Lead a frontend project from conception to deployment",
-          ],
-        },
-        {
-          title: "Full-Stack Tech Lead",
-          description:
-            "Expand backend skills while maintaining frontend expertise",
-          steps: [
-            "Learn advanced backend frameworks (Express.js, NestJS)",
-            "Master database design and optimization",
-            "Develop DevOps and deployment skills",
-            "Practice system architecture and scalability",
-          ],
-        },
-      ]);
-
-      // Mock Job Recommendations
-      setRecommendations([
-        {
-          id: 1,
-          title: "Frontend Developer",
-          company: "TechCorp Inc",
-          score: 0.92,
-          snippet:
-            "Join our dynamic team building cutting-edge web applications with React and TypeScript...",
-          tags: ["React", "JavaScript", "CSS", "Remote"],
-          url: "https://example.com/job1",
-          source: "Mock API",
-        },
-        {
-          id: 2,
-          title: "Full-Stack Developer",
-          company: "StartupXYZ",
-          score: 0.87,
-          snippet:
-            "We're looking for a passionate developer to work on both frontend and backend systems...",
-          tags: ["Node.js", "React", "MongoDB", "AWS"],
-          url: "https://example.com/job2",
-          source: "Mock API",
-        },
-        {
-          id: 3,
-          title: "React Developer",
-          company: "Digital Solutions Ltd",
-          score: 0.95,
-          snippet:
-            "Build responsive and interactive user interfaces using React and modern JavaScript...",
-          tags: ["React", "Redux", "TypeScript", "On-site"],
-          url: "https://example.com/job3",
-          source: "Mock API",
-        },
-        {
-          id: 4,
-          title: "Junior Software Engineer",
-          company: "Innovation Labs",
-          score: 0.78,
-          snippet:
-            "Perfect opportunity for junior developers to grow their skills in a supportive environment...",
-          tags: ["JavaScript", "Learning", "Mentorship", "Hybrid"],
-          url: "https://example.com/job4",
-          source: "Mock API",
-        },
-      ]);
-
-      setSuccessMessage(
-        "Mock data loaded successfully! This is how your results will look."
-      );
-      setLoading(false);
-    }, 1500); // 1.5 second delay to simulate API call
-  }
-
   async function uploadAndGetRecommendations() {
+    // Reset states
     setError("");
     setRecommendations([]);
+    setCvAnalysis(null);
+    setSkillGaps([]);
+    setCareerPaths([]);
     setSuccessMessage("");
+    setAnalysisId(null);
 
     if (!file) {
       setError("No CV selected. Please choose a PDF to upload.");
@@ -181,34 +74,62 @@ function JobRecomendation() {
 
     try {
       setLoading(true);
+
+      // Prepare headers (optional auth)
+      const headers = {};
+      if (token) {
+        headers.Authorization = `Bearer ${token}`;
+      }
+
       const res = await fetch(RECOMMEND_API_URL, {
         method: "POST",
+        headers: headers,
         body: form,
       });
 
       if (!res.ok) {
-        const text = await res.text();
-        throw new Error(`Server error ${res.status}: ${text}`);
+        const errorData = await res
+          .json()
+          .catch(() => ({ error: "Server error" }));
+        throw new Error(
+          errorData.error || errorData.message || `Server error ${res.status}`
+        );
       }
 
       const data = await res.json();
-      const list = Array.isArray(data) ? data : data.recommendations || [];
-      setRecommendations(list);
 
-      const analysis =
-        data.analysis || data.cvAnalysis || data.cv_analysis || null;
-      const gaps = data.skillGaps || data.skill_gaps || data.gaps || [];
-      const paths = data.careerPaths || data.career_paths || data.career || [];
-      setCvAnalysis(analysis);
-      setSkillGaps(Array.isArray(gaps) ? gaps : []);
-      setCareerPaths(Array.isArray(paths) ? paths : []);
+      // Backend returns: { success, message, analysis, skillGaps, careerPaths, recommendations, analysisId }
+      if (data.success) {
+        // Set CV Analysis data (name, email, phone, experience, skills)
+        setCvAnalysis(data.analysis || null);
 
-      setSuccessMessage(
-        `Found ${list.length} recommendation${list.length === 1 ? "" : "s"}`
-      );
+        // Set Skill Gaps (skills missing from job market)
+        setSkillGaps(Array.isArray(data.skillGaps) ? data.skillGaps : []);
+
+        // Set Career Paths (recommended career directions)
+        setCareerPaths(Array.isArray(data.careerPaths) ? data.careerPaths : []);
+
+        // Set Job Recommendations (matched jobs from services)
+        setRecommendations(
+          Array.isArray(data.recommendations) ? data.recommendations : []
+        );
+
+        // Save analysis ID for future reference
+        setAnalysisId(data.analysisId || null);
+
+        const jobCount = data.recommendations?.length || 0;
+        setSuccessMessage(
+          data.message ||
+            `CV analyzed successfully! Found ${jobCount} job match${
+              jobCount === 1 ? "" : "es"
+            } based on your skills.`
+        );
+      } else {
+        throw new Error(data.error || data.message || "Failed to analyze CV");
+      }
     } catch (err) {
-      console.error(err);
-      setError(err.message || "Failed to fetch recommendations.");
+      console.error("CV Upload Error:", err);
+      setError(err.message || "Failed to analyze CV. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -321,18 +242,18 @@ function JobRecomendation() {
                     clipRule="evenodd"
                   />
                 </svg>
-                <span>AI-Powered Career Analysis</span>
+                <span>Smart CV-to-Job Matching</span>
               </div>
 
               <h1 className="text-4xl md:text-5xl font-bold text-slate-900 mb-6">
                 Find Your Perfect Job with
-                <span className="text-teal-600"> Smart CV Analysis</span>
+                <span className="text-teal-600"> Intelligent CV Analysis</span>
               </h1>
 
               <p className="text-lg text-slate-600 mb-8 leading-relaxed">
-                Upload your CV and get instant analysis, skill gap
-                identification, career path recommendations, and personalized
-                job matches powered by AI.
+                Upload your CV and our system extracts your skills, matches them
+                with 8+ career fields, identifies skill gaps, suggests career
+                paths, and recommends jobs from multiple sources.
               </p>
 
               {/* Animated Stats */}
@@ -557,31 +478,6 @@ function JobRecomendation() {
                 </button>
               </div>
 
-              {/* Mock Data Button for Testing */}
-
-              <div className="flex justify-center mt-4">
-                <button
-                  onClick={loadMockData}
-                  disabled={loading}
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-medium shadow-md hover:shadow-lg hover:brightness-105 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 text-sm"
-                >
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth="2"
-                      d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                    />
-                  </svg>
-                  <span>Preview with Mock Data</span>
-                </button>
-              </div>
-
               <div className="text-center">
                 <p className="text-xs text-slate-500">
                   🔒 Your CV is processed securely and deleted after analysis
@@ -690,26 +586,25 @@ function JobRecomendation() {
                         clipRule="evenodd"
                       />
                     </svg>
-                    <h4 className="font-semibold text-slate-900">Summary</h4>
+                    <h4 className="font-semibold text-slate-900">Profile</h4>
                   </div>
-                  <p className="text-sm text-slate-700 leading-relaxed mb-4">
-                    {cvAnalysis.summary || "No summary available."}
-                  </p>
                   <div className="space-y-3">
+                    <div>
+                      <div className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+                        Name
+                      </div>
+                      <div className="font-medium text-slate-900">
+                        {cvAnalysis.name || "Not detected"}
+                      </div>
+                    </div>
                     <div>
                       <div className="text-xs font-medium text-slate-500 uppercase tracking-wide">
                         Experience
                       </div>
                       <div className="font-medium text-slate-900">
-                        {cvAnalysis.experience || "Not detected"}
-                      </div>
-                    </div>
-                    <div>
-                      <div className="text-xs font-medium text-slate-500 uppercase tracking-wide">
-                        Education
-                      </div>
-                      <div className="font-medium text-slate-900">
-                        {cvAnalysis.education || "Not detected"}
+                        {cvAnalysis.experience
+                          ? `${cvAnalysis.experience} years`
+                          : "Not detected"}
                       </div>
                     </div>
                   </div>
@@ -724,7 +619,9 @@ function JobRecomendation() {
                     >
                       <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
-                    <h4 className="font-semibold text-slate-900">Top Skills</h4>
+                    <h4 className="font-semibold text-slate-900">
+                      Skills Extracted
+                    </h4>
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {(cvAnalysis.skills || []).length ? (
@@ -751,11 +648,8 @@ function JobRecomendation() {
                       fill="currentColor"
                       viewBox="0 0 20 20"
                     >
-                      <path
-                        fillRule="evenodd"
-                        d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z"
-                        clipRule="evenodd"
-                      />
+                      <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" />
+                      <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" />
                     </svg>
                     <h4 className="font-semibold text-slate-900">
                       Contact Info
@@ -768,13 +662,12 @@ function JobRecomendation() {
                         fill="currentColor"
                         viewBox="0 0 20 20"
                       >
-                        <path
-                          fillRule="evenodd"
-                          d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z"
-                          clipRule="evenodd"
-                        />
+                        <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" />
+                        <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" />
                       </svg>
-                      <span>{cvAnalysis.location || "Location not found"}</span>
+                      <span className="break-all">
+                        {cvAnalysis.email || "Email not found"}
+                      </span>
                     </div>
                     <div className="flex items-center gap-2">
                       <svg
@@ -782,10 +675,9 @@ function JobRecomendation() {
                         fill="currentColor"
                         viewBox="0 0 20 20"
                       >
-                        <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" />
-                        <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" />
+                        <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" />
                       </svg>
-                      <span>{cvAnalysis.contact || "Contact not found"}</span>
+                      <span>{cvAnalysis.phone || "Phone not found"}</span>
                     </div>
                   </div>
                 </div>
@@ -994,62 +886,101 @@ function JobRecomendation() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 animate-stagger">
             {recommendations.map((r, idx) => (
               <article
-                key={r.id || idx}
+                key={r.jobId || idx}
                 className="p-4 rounded-lg shadow-sm border-l-4 border-transparent hover:shadow-lg hover:-translate-y-1 transition-all duration-300 bg-white"
                 style={{
                   borderLeftColor: `hsl(${(idx * 73) % 360}deg 70% 55%)`,
                 }}
               >
                 <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <h3 className="text-lg font-semibold">
-                      {r.title || r.role || "Untitled role"}
+                  <div className="flex-1">
+                    <h3 className="text-lg font-semibold text-slate-900">
+                      {r.title || "Untitled Position"}
                     </h3>
-                    <div className="text-sm text-gray-500">
-                      {r.company ||
-                        r.organisation ||
-                        r.organization ||
-                        "Company"}
+                    <div className="text-sm text-gray-600 mt-1">
+                      {r.company || "Company"}
+                    </div>
+                    <div className="flex items-center gap-2 mt-1 text-xs text-gray-500">
+                      <svg
+                        className="w-3 h-3"
+                        fill="currentColor"
+                        viewBox="0 0 20 20"
+                      >
+                        <path
+                          fillRule="evenodd"
+                          d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
+                      {r.location || "Remote"}
                     </div>
                   </div>
-                  <div className="text-sm text-gray-600 text-right">
-                    <div className="font-medium">
-                      {r.score
-                        ? `${Math.round(r.score * 100)}% fit`
-                        : r.match || "—"}
-                    </div>
+                  <div className="text-sm text-right">
+                    {r.score !== undefined && (
+                      <div className="font-semibold text-teal-600">
+                        {Math.round(r.score)}% match
+                      </div>
+                    )}
+                    {r.source && (
+                      <div className="text-xs text-gray-400 mt-1">
+                        via {r.source}
+                      </div>
+                    )}
                   </div>
                 </div>
 
-                {r.snippet ? (
-                  <p className="mt-3 text-sm text-gray-700">{r.snippet}</p>
-                ) : null}
+                {r.description && (
+                  <p className="mt-3 text-sm text-gray-700 line-clamp-2">
+                    {r.description.replace(/<[^>]*>/g, "").substring(0, 150)}
+                    {r.description.length > 150 ? "..." : ""}
+                  </p>
+                )}
 
-                {r.tags && r.tags.length ? (
+                {r.tags && r.tags.length > 0 && (
                   <div className="mt-3 flex gap-2 flex-wrap">
-                    {r.tags.map((t, i) => (
+                    {r.tags.slice(0, 5).map((tag, i) => (
                       <span
                         key={i}
                         className="text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-700"
                       >
-                        {t}
+                        {tag}
                       </span>
                     ))}
+                    {r.tags.length > 5 && (
+                      <span className="text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-500">
+                        +{r.tags.length - 5} more
+                      </span>
+                    )}
                   </div>
-                ) : null}
+                )}
 
                 <div className="mt-4 flex items-center justify-between">
                   <a
-                    href={r.url || r.link || "#"}
+                    href={r.url || "#"}
                     target="_blank"
-                    rel="noreferrer"
-                    className="text-sm font-medium text-indigo-600 hover:underline"
+                    rel="noopener noreferrer"
+                    className="text-sm font-medium text-teal-600 hover:text-teal-700 hover:underline inline-flex items-center gap-1"
                   >
-                    View role
+                    View Job Details
+                    <svg
+                      className="w-4 h-4"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="2"
+                        d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                      />
+                    </svg>
                   </a>
-                  <div className="text-xs text-gray-400">
-                    Source: {r.source || "API"}
-                  </div>
+                  {r.postedDate && (
+                    <div className="text-xs text-gray-400">
+                      {new Date(r.postedDate).toLocaleDateString()}
+                    </div>
+                  )}
                 </div>
               </article>
             ))}

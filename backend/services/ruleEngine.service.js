@@ -5,38 +5,70 @@
 
 // RULE 1: Calculate match score based on skill overlap
 function calculateMatchScore(userSkills, jobSkills) {
-  if (!jobSkills || jobSkills.length === 0) return 60; // Base score
+  if (!jobSkills || jobSkills.length === 0) return 40; // Lower base score for jobs without tags
 
-  const userSkillsLower = userSkills.map((s) => s.toLowerCase());
-  const jobSkillsLower = jobSkills.map((s) => s.toLowerCase());
+  const userSkillsLower = userSkills.map((s) => s.toLowerCase().trim());
+  const jobSkillsLower = jobSkills.map((s) => s.toLowerCase().trim());
 
-  let matchCount = 0;
+  let exactMatches = 0;
+  let partialMatches = 0;
 
-  userSkillsLower.forEach((userSkill) => {
-    jobSkillsLower.forEach((jobSkill) => {
-      // Check for exact match or partial match
-      if (userSkill.includes(jobSkill) || jobSkill.includes(userSkill)) {
-        matchCount++;
+  jobSkillsLower.forEach((jobSkill) => {
+    const hasExactMatch = userSkillsLower.some(
+      (userSkill) =>
+        userSkill === jobSkill ||
+        jobSkill.split(/[\s,/-]+/).some((part) => userSkill === part)
+    );
+
+    if (hasExactMatch) {
+      exactMatches++;
+    } else {
+      const hasPartialMatch = userSkillsLower.some(
+        (userSkill) =>
+          userSkill.includes(jobSkill) || jobSkill.includes(userSkill)
+      );
+      if (hasPartialMatch) {
+        partialMatches++;
       }
-    });
+    }
   });
 
-  // Calculate score: (matched skills / total job requirements) * 100
-  const score = Math.min(Math.round((matchCount / jobSkills.length) * 100), 95);
-  return Math.max(score, 50); // Minimum score of 50
+  // Weighted score: exact matches worth more
+  const weightedScore = (exactMatches * 2 + partialMatches) / jobSkills.length;
+  const score = Math.min(Math.round(weightedScore * 50), 95);
+
+  // Bonus points for having many of the required skills
+  const coverageBonus = Math.round((exactMatches / jobSkills.length) * 20);
+
+  return Math.max(score + coverageBonus, 30); // Minimum score of 30
 }
 
-// RULE 2: Identify skill gaps from job market
-function identifySkillGaps(userSkills, jobRecommendations) {
+// RULE 2: Identify skill gaps from job market and career paths
+function identifySkillGaps(userSkills, jobRecommendations, careerPaths = []) {
   const skillFrequency = {};
-  const userSkillsLower = userSkills.map((s) => s.toLowerCase());
+  const skillJobCount = {};
+  const userSkillsLower = userSkills.map((s) => s.toLowerCase().trim());
 
-  // Count skill frequency across all jobs
-  jobRecommendations.forEach((job) => {
-    const jobSkills = job.tags || [];
-    jobSkills.forEach((skill) => {
-      const skillLower = skill.toLowerCase();
-      skillFrequency[skillLower] = (skillFrequency[skillLower] || 0) + 1;
+  // Count skill frequency across top-scoring jobs (70+ match score)
+  jobRecommendations
+    .filter((job) => job.matchScore >= 70)
+    .forEach((job) => {
+      const jobSkills = job.tags || [];
+      jobSkills.forEach((skill) => {
+        const skillLower = skill.toLowerCase().trim();
+        skillFrequency[skillLower] = (skillFrequency[skillLower] || 0) + 1;
+        if (!skillJobCount[skillLower]) {
+          skillJobCount[skillLower] = new Set();
+        }
+        skillJobCount[skillLower].add(job.jobId);
+      });
+    });
+
+  // Add skills from recommended career paths
+  careerPaths.forEach((path) => {
+    (path.requiredSkills || []).forEach((skill) => {
+      const skillLower = skill.toLowerCase().trim();
+      skillFrequency[skillLower] = (skillFrequency[skillLower] || 0) + 3; // Weight career path skills higher
     });
   });
 
@@ -44,21 +76,32 @@ function identifySkillGaps(userSkills, jobRecommendations) {
   const missingSkills = Object.entries(skillFrequency)
     .filter(([skill]) => {
       return !userSkillsLower.some(
-        (userSkill) => userSkill.includes(skill) || skill.includes(userSkill)
+        (userSkill) =>
+          userSkill === skill ||
+          userSkill.includes(skill) ||
+          skill.includes(userSkill)
       );
     })
     .sort((a, b) => b[1] - a[1]) // Sort by frequency
-    .slice(0, 10) // Top 10
-    .map(([skill, count]) => ({
-      skill: skill.charAt(0).toUpperCase() + skill.slice(1),
-      importance: count >= 5 ? "High" : count >= 3 ? "Medium" : "Low",
-      missing: true,
-      suggestions: [
-        `Take an online course on ${skill}`,
-        `Build a project using ${skill}`,
-        `Get certified in ${skill}`,
-      ],
-    }));
+    .slice(0, 8) // Top 8
+    .map(([skill, count]) => {
+      const formattedSkill = skill
+        .split(" ")
+        .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(" ");
+
+      return {
+        skill: formattedSkill,
+        importance: count >= 5 ? "High" : count >= 3 ? "Medium" : "Low",
+        missing: true,
+        suggestions: [
+          `Complete an online course in ${formattedSkill} (Udemy, Coursera)`,
+          `Build 2-3 projects demonstrating ${formattedSkill} skills`,
+          `Add ${formattedSkill} to your portfolio and GitHub`,
+          `Practice ${formattedSkill} through coding challenges`,
+        ],
+      };
+    });
 
   return missingSkills;
 }
@@ -391,13 +434,30 @@ function generateCareerPaths(userSkills, experience) {
   return uniquePaths.slice(0, 5);
 }
 
-// RULE 4: Filter and rank jobs
+// RULE 4: Filter and rank jobs based on user skills
 function rankJobs(jobs, userSkills) {
+  const userSkillsLower = userSkills.map((s) => s.toLowerCase().trim());
+
   return jobs
-    .map((job) => ({
-      ...job,
-      matchScore: calculateMatchScore(userSkills, job.tags || []),
-    }))
+    .map((job) => {
+      const matchScore = calculateMatchScore(userSkills, job.tags || []);
+
+      // Check if job title or description contains user skills
+      const titleLower = (job.title || "").toLowerCase();
+      const descLower = (job.description || "").toLowerCase().substring(0, 500);
+
+      let relevanceBonus = 0;
+      userSkillsLower.forEach((skill) => {
+        if (titleLower.includes(skill)) relevanceBonus += 10;
+        if (descLower.includes(skill)) relevanceBonus += 5;
+      });
+
+      return {
+        ...job,
+        matchScore: Math.min(matchScore + relevanceBonus, 98),
+      };
+    })
+    .filter((job) => job.matchScore >= 35) // Filter out very low matches
     .sort((a, b) => b.matchScore - a.matchScore) // Sort by match score
     .slice(0, 15); // Return top 15 matches
 }
