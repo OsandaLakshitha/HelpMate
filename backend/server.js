@@ -25,6 +25,7 @@ mongoose
 app.use("/api/auth", require("./routes/auth"));
 app.use("/api/admin", require("./routes/admin"));
 app.use("/api/pricing", require("./routes/pricing"));
+app.use("/api", require("./routes/recommendations"));
 
 // Health check
 app.get("/api/health", (req, res) => {
