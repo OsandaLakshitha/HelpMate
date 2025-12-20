@@ -1,4 +1,4 @@
-const PDFParser = require("pdf-parse");
+const pdf = require("pdf-parse");
 
 /**
  * PDF Extractor Service
@@ -8,10 +8,31 @@ const PDFParser = require("pdf-parse");
 // STEP 1: Extract text from PDF buffer
 async function extractTextFromPDF(buffer) {
   try {
-    const data = await PDFParser(buffer);
+    // Validate buffer
+    if (!buffer || !Buffer.isBuffer(buffer)) {
+      throw new Error("Invalid buffer: Expected a Buffer object");
+    }
+
+    if (buffer.length === 0) {
+      throw new Error("Empty buffer: PDF file is empty");
+    }
+
+    // Check if it's a valid PDF (starts with %PDF)
+    const pdfHeader = buffer.toString("utf8", 0, 4);
+    if (pdfHeader !== "%PDF") {
+      throw new Error("Invalid PDF: File does not appear to be a valid PDF");
+    }
+
+    const data = await pdf(buffer);
+
+    if (!data || !data.text) {
+      throw new Error("PDF parsed but no text extracted");
+    }
+
     return data.text;
   } catch (error) {
-    throw new Error("Failed to extract text from PDF");
+    console.error("PDF Extraction Error:", error.message);
+    throw new Error(`Failed to extract text from PDF: ${error.message}`);
   }
 }
 
