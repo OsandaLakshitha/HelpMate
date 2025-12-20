@@ -31,46 +31,11 @@ const { protect } = require("../middleware/auth");
 
 // Routes
 
-/**
- * @route   POST /api/recommendations
- * @desc    Upload CV and get job recommendations
- * @access  Public/Protected (depends on your auth setup)
- */
 router.post("/recommendations", upload.single("cv"), uploadAndAnalyzeCV);
-
-/**
- * @route   GET /api/recommendations/history
- * @desc    Get user's CV analysis history
- * @access  Protected
- */
 router.get("/recommendations/history", protect, getCVAnalysisHistory);
-
-/**
- * @route   GET /api/recommendations/:id
- * @desc    Get specific CV analysis by ID
- * @access  Protected
- */
 router.get("/recommendations/:id", protect, getCVAnalysisById);
-
-/**
- * @route   POST /api/recommendations/search
- * @desc    Manual job search with keywords
- * @access  Protected
- */
 router.post("/recommendations/search", protect, searchJobs);
-
-/**
- * @route   GET /api/recommendations/search/history
- * @desc    Get job search history
- * @access  Protected
- */
 router.get("/recommendations/search/history", protect, getJobSearchHistory);
-
-/**
- * @route   POST /api/recommendations/save
- * @desc    Save/bookmark a job
- * @access  Protected
- */
 router.post("/recommendations/save", protect, saveJob);
 
 module.exports = router;
