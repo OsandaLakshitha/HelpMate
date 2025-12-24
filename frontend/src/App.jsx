@@ -1,41 +1,48 @@
 // src/App.jsx
-import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider } from './context/AuthContext';
-import ProtectedRoute from './components/ProtectedRoute';
+import React from "react";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+} from "react-router-dom";
+import { AuthProvider } from "./context/AuthContext";
+import ProtectedRoute from "./components/ProtectedRoute";
 
 // Layouts
-import Navbar from './components/Navbar';
-import Footer from './components/Footer';
-import AdminLayout from './components/admin/AdminLayout';
-import UserLayout from './components/user/UserLayout';
+import Navbar from "./components/Navbar";
+import Footer from "./components/Footer";
+import AdminLayout from "./components/admin/AdminLayout";
+import UserLayout from "./components/user/UserLayout";
 
 // Public Pages
-import Home from './pages/Home';
-import Features from './pages/Features';
-import HowItWorks from './pages/HowItWorks';
-import Pricing from './pages/Pricing';
-import About from './pages/About';
-import Login from './pages/Login';
-import Signup from './pages/Signup';
+import Home from "./pages/Home";
+import Features from "./pages/Features";
+import HowItWorks from "./pages/HowItWorks";
+import Pricing from "./pages/Pricing";
+import About from "./pages/About";
+import Login from "./pages/Login";
+import Signup from "./pages/Signup";
 
 // Admin Pages
-import AdminDashboard from './pages/admin/Dashboard';
-import AdminUsers from './pages/admin/Users';
-import AdminPricing from './pages/admin/PricingManagement';
-import AdminSettings from './pages/admin/Settings';
+import AdminDashboard from "./pages/admin/Dashboard";
+import AdminUsers from "./pages/admin/Users";
+import AdminPricing from "./pages/admin/PricingManagement";
+import AdminSettings from "./pages/admin/Settings";
 
 // User Pages
-import UserDashboard from './pages/user/Dashboard';
-import UserStudy from './pages/user/Study';
-import UserCareer from './pages/user/Career';
-import UserWellness from './pages/user/Wellness';
-import UserFiles from './pages/user/Files';
-import UserProfile from './pages/user/Profile';
-import UserSettings from './pages/user/Settings';
+import UserDashboard from "./pages/user/Dashboard";
+import UserStudy from "./pages/user/Study";
+import UserCareer from "./pages/user/Career";
+import UserWellness from "./pages/user/Wellness";
+import UserFiles from "./pages/user/Files";
+import UserProfile from "./pages/user/Profile";
+import UserSettings from "./pages/user/Settings";
+import JobRecomendation from "./pages/user/JobRecomendation";
+import PeerMatching from "./pages/user/PeerMatching";
 
 // 404 Page
-import NotFound from './pages/NotFound';
+import NotFound from "./pages/NotFound";
 
 function App() {
   return (
@@ -88,6 +95,8 @@ function App() {
             <Route path="files" element={<UserFiles />} />
             <Route path="profile" element={<UserProfile />} />
             <Route path="settings" element={<UserSettings />} />
+            <Route path="job-recommendation" element={<JobRecomendation />} />
+            <Route path="peer-matching" element={<PeerMatching />} />
           </Route>
 
           {/* 404 Route */}
@@ -112,6 +121,6 @@ const PublicLayout = () => {
 };
 
 // Import Outlet for layouts
-import { Outlet } from 'react-router-dom';
+import { Outlet } from "react-router-dom";
 
 export default App;
