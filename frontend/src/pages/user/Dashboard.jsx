@@ -42,6 +42,13 @@ const UserDashboard = () => {
       link: '/user/notes/upload',
     },
     {
+      title: 'All Notes',
+      description: 'Transform your notes into flashcards',
+      icon: Upload,
+      gradient: 'from-teal-500 to-cyan-500',
+      link: '/user/notes/list',
+    },
+    {
       title: 'Analyze CV',
       description: 'Get AI-powered CV insights',
       icon: FileText,
