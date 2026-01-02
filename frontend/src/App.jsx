@@ -42,6 +42,7 @@ import JobRecomendation from "./pages/user/JobRecomendation";
 import PeerMatching from "./pages/user/PeerMatching";
 import NotesUpload from './pages/user/NotesUpload';
 import MyNotes from './pages/user/MyNotes';
+import NoteDetail from './pages/user/NoteDetail';
 
 // 404 Page
 import NotFound from "./pages/NotFound";
@@ -101,6 +102,7 @@ function App() {
             <Route path="peer-matching" element={<PeerMatching />} />
             <Route path="/user/notes/upload" element={<NotesUpload />} />
             <Route path="/user/notes/list" element={<MyNotes />} />
+            <Route path="notes/:id" element={<NoteDetail />} />
           </Route>
 
           {/* 404 Route */}
