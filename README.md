@@ -1,1 +1,3 @@
 # HelpMate
+
+📋 Project Overview
