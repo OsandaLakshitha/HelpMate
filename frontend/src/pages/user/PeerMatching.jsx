@@ -15,6 +15,10 @@ function PeerMatching() {
   });
   const [newInterest, setNewInterest] = useState("");
   const [newSkill, setNewSkill] = useState("");
+  const [showConnectModal, setShowConnectModal] = useState(false);
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [connectMessage, setConnectMessage] = useState("");
+  const [sendingConnection, setSendingConnection] = useState(false);
 
   // Load user profile on component mount
   useEffect(() => {
@@ -108,6 +112,40 @@ function PeerMatching() {
       ...editForm,
       skills: editForm.skills.filter((s) => s !== skill),
     });
+  };
+
+  const handleConnectClick = (user) => {
+    setSelectedUser(user);
+    setConnectMessage("");
+    setShowConnectModal(true);
+  };
+
+  const sendConnectionRequest = async () => {
+    if (!selectedUser) return;
+
+    setSendingConnection(true);
+    try {
+      const response = await api.post("/api/peer-matching/connect", {
+        recipientId: selectedUser._id,
+        message: connectMessage,
+      });
+
+      if (response.success) {
+        alert(
+          `Connection request sent to ${selectedUser.firstName} ${selectedUser.lastName}!`
+        );
+        setShowConnectModal(false);
+        setSelectedUser(null);
+        setConnectMessage("");
+      } else {
+        alert("Failed to send connection request: " + response.message);
+      }
+    } catch (err) {
+      console.error("Error sending connection request:", err);
+      alert("Failed to send connection request: " + err.message);
+    } finally {
+      setSendingConnection(false);
+    }
   };
 
   const getMatchColor = (score) => {
@@ -412,7 +450,10 @@ function PeerMatching() {
 
                   {/* Action Buttons */}
                   <div className="px-6 pb-6">
-                    <button className="w-full py-3 bg-gradient-to-r from-teal-600 to-cyan-600 text-white font-semibold rounded-xl hover:brightness-105 transition-all duration-300">
+                    <button
+                      onClick={() => handleConnectClick(match)}
+                      className="w-full py-3 bg-gradient-to-r from-teal-600 to-cyan-600 text-white font-semibold rounded-xl hover:brightness-105 transition-all duration-300"
+                    >
                       Connect
                     </button>
                   </div>
@@ -670,6 +711,77 @@ function PeerMatching() {
                   Save Changes
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Connect Modal */}
+      {showConnectModal && selectedUser && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-8">
+            <div className="text-center mb-6">
+              <div className="w-20 h-20 mx-auto mb-4 bg-gradient-to-r from-teal-500 to-cyan-500 rounded-full flex items-center justify-center text-white font-bold text-2xl">
+                {selectedUser.avatar ? (
+                  <img
+                    src={selectedUser.avatar}
+                    alt={selectedUser.firstName}
+                    className="w-full h-full rounded-full object-cover"
+                  />
+                ) : (
+                  getInitials(selectedUser.firstName, selectedUser.lastName)
+                )}
+              </div>
+              <h3 className="text-2xl font-bold text-slate-800 mb-2">
+                Connect with {selectedUser.firstName} {selectedUser.lastName}
+              </h3>
+              <p className="text-slate-600">
+                Send a message to introduce yourself!
+              </p>
+            </div>
+
+            <div className="mb-6">
+              <label className="block text-sm font-semibold text-slate-700 mb-2">
+                Your Message
+              </label>
+              <textarea
+                value={connectMessage}
+                onChange={(e) => setConnectMessage(e.target.value)}
+                placeholder="Hi! I'd love to connect and study together..."
+                rows={4}
+                className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-transparent resize-none"
+              />
+              <p className="text-xs text-slate-500 mt-2">
+                This message will be sent via email to {selectedUser.firstName}
+              </p>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowConnectModal(false);
+                  setSelectedUser(null);
+                  setConnectMessage("");
+                }}
+                disabled={sendingConnection}
+                className="flex-1 px-6 py-3 border border-slate-300 text-slate-700 rounded-xl hover:bg-slate-50 font-semibold disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={sendConnectionRequest}
+                disabled={sendingConnection}
+                className="flex-1 px-6 py-3 bg-gradient-to-r from-teal-600 to-cyan-600 text-white rounded-xl hover:brightness-105 font-semibold disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {sendingConnection ? (
+                  <>
+                    <div className="animate-spin w-5 h-5 border-2 border-white border-t-transparent rounded-full"></div>
+                    Sending...
+                  </>
+                ) : (
+                  "Send Request"
+                )}
+              </button>
             </div>
           </div>
         </div>
