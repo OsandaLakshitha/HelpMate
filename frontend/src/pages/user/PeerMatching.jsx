@@ -163,6 +163,12 @@ function PeerMatching() {
               </span>
             </div>
             <div>
+              <span className="font-medium text-slate-700">Major:</span>{" "}
+              <span className="text-slate-600">
+                {profile.major || "Not set"}
+              </span>
+            </div>
+            <div>
               <span className="font-medium text-slate-700">
                 Academic Level:
               </span>{" "}
@@ -180,7 +186,7 @@ function PeerMatching() {
                 {profile.interests?.length || 0} added
               </span>
             </div>
-            <div className="md:col-span-2">
+            <div>
               <span className="font-medium text-slate-700">Skills:</span>{" "}
               <span className="text-slate-600">
                 {profile.skills?.length || 0} added
