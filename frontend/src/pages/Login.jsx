@@ -45,11 +45,13 @@ const Login = () => {
     const result = await login(formData.email, formData.password);
 
     if (result.success) {
-      // Redirect based on role
+      // ✅ FIX: Redirect based on role
       if (result.user.role === 'admin') {
-        navigate('/admin/dashboard');
+        navigate('/admin/dashboard', { replace: true });
       } else {
-        navigate(from, { replace: true });
+        // Only use 'from' if it's a valid user route, otherwise go to dashboard
+        const redirectTo = from.startsWith('/user') ? from : '/user/dashboard';
+        navigate(redirectTo, { replace: true });
       }
     } else {
       setError(result.message);
