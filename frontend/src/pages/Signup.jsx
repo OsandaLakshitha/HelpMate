@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { useAuth } from '../context/AuthContext';
+import React, { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
+import { useAuth } from "../context/AuthContext";
 import {
   Mail,
   Lock,
@@ -15,25 +15,29 @@ import {
   Sparkles,
   GraduationCap,
   BookOpen,
-} from 'lucide-react';
+} from "lucide-react";
 
 const Signup = () => {
   const navigate = useNavigate();
   const { register } = useAuth();
 
   const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
-    email: '',
-    password: '',
-    confirmPassword: '',
-    university: '',
-    major: '',
+    firstName: "",
+    lastName: "",
+    email: "",
+    password: "",
+    confirmPassword: "",
+    university: "",
+    major: "",
+    academicLevel: "other",
+    interests: "",
+    skills: "",
+    goals: "",
   });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [passwordStrength, setPasswordStrength] = useState(0);
 
   const handleChange = (e) => {
@@ -42,10 +46,10 @@ const Signup = () => {
       ...formData,
       [name]: value,
     });
-    setError('');
+    setError("");
 
     // Calculate password strength
-    if (name === 'password') {
+    if (name === "password") {
       let strength = 0;
       if (value.length >= 6) strength++;
       if (value.length >= 10) strength++;
@@ -59,17 +63,17 @@ const Signup = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    setError('');
+    setError("");
 
     // Validation
     if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match');
+      setError("Passwords do not match");
       setLoading(false);
       return;
     }
 
     if (formData.password.length < 6) {
-      setError('Password must be at least 6 characters');
+      setError("Password must be at least 6 characters");
       setLoading(false);
       return;
     }
@@ -81,10 +85,23 @@ const Signup = () => {
       password: formData.password,
       university: formData.university,
       major: formData.major,
+      academicLevel: formData.academicLevel,
+      interests: formData.interests
+        .split(",")
+        .map((s) => s.trim())
+        .filter((s) => s),
+      skills: formData.skills
+        .split(",")
+        .map((s) => s.trim())
+        .filter((s) => s),
+      goals: formData.goals
+        .split(",")
+        .map((s) => s.trim())
+        .filter((s) => s),
     });
 
     if (result.success) {
-      navigate('/');
+      navigate("/");
     } else {
       setError(result.message);
     }
@@ -93,15 +110,15 @@ const Signup = () => {
   };
 
   const getPasswordStrengthColor = () => {
-    if (passwordStrength <= 1) return 'bg-red-500';
-    if (passwordStrength <= 3) return 'bg-yellow-500';
-    return 'bg-green-500';
+    if (passwordStrength <= 1) return "bg-red-500";
+    if (passwordStrength <= 3) return "bg-yellow-500";
+    return "bg-green-500";
   };
 
   const getPasswordStrengthText = () => {
-    if (passwordStrength <= 1) return 'Weak';
-    if (passwordStrength <= 3) return 'Medium';
-    return 'Strong';
+    if (passwordStrength <= 1) return "Weak";
+    if (passwordStrength <= 3) return "Medium";
+    return "Strong";
   };
 
   return (
@@ -109,7 +126,7 @@ const Signup = () => {
       {/* Left Side - Image/Info */}
       <div className="hidden lg:block lg:flex-1 bg-gradient-to-br from-teal-600 via-cyan-600 to-emerald-600 relative overflow-hidden">
         <div className="absolute inset-0 bg-grid-white/[0.05] bg-[size:30px_30px]" />
-        
+
         <motion.div
           animate={{
             y: [0, -20, 0],
@@ -134,15 +151,16 @@ const Signup = () => {
                 Join 50,000+ Students
               </h2>
               <p className="text-xl text-teal-100 mb-8">
-                Start your journey to academic excellence and career success today.
+                Start your journey to academic excellence and career success
+                today.
               </p>
 
               <div className="space-y-4">
                 {[
-                  { icon: BookOpen, text: 'Free forever plan available' },
-                  { icon: Sparkles, text: 'AI-powered study tools' },
-                  { icon: CheckCircle, text: 'No credit card required' },
-                  { icon: CheckCircle, text: 'Cancel anytime' },
+                  { icon: BookOpen, text: "Free forever plan available" },
+                  { icon: Sparkles, text: "AI-powered study tools" },
+                  { icon: CheckCircle, text: "No credit card required" },
+                  { icon: CheckCircle, text: "Cancel anytime" },
                 ].map((item, index) => (
                   <motion.div
                     key={index}
@@ -188,7 +206,7 @@ const Signup = () => {
               Create your account
             </h2>
             <p className="mt-2 text-sm text-slate-600">
-              Already have an account?{' '}
+              Already have an account?{" "}
               <Link
                 to="/login"
                 className="font-medium text-teal-600 hover:text-teal-500 transition-colors"
@@ -217,7 +235,10 @@ const Signup = () => {
             {/* Name Fields */}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label htmlFor="firstName" className="block text-sm font-medium text-slate-700 mb-2">
+                <label
+                  htmlFor="firstName"
+                  className="block text-sm font-medium text-slate-700 mb-2"
+                >
                   First Name
                 </label>
                 <div className="relative">
@@ -238,7 +259,10 @@ const Signup = () => {
               </div>
 
               <div>
-                <label htmlFor="lastName" className="block text-sm font-medium text-slate-700 mb-2">
+                <label
+                  htmlFor="lastName"
+                  className="block text-sm font-medium text-slate-700 mb-2"
+                >
                   Last Name
                 </label>
                 <input
@@ -256,7 +280,10 @@ const Signup = () => {
 
             {/* Email */}
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-slate-700 mb-2">
+              <label
+                htmlFor="email"
+                className="block text-sm font-medium text-slate-700 mb-2"
+              >
                 Email address
               </label>
               <div className="relative">
@@ -280,7 +307,10 @@ const Signup = () => {
             {/* University & Major */}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label htmlFor="university" className="block text-sm font-medium text-slate-700 mb-2">
+                <label
+                  htmlFor="university"
+                  className="block text-sm font-medium text-slate-700 mb-2"
+                >
                   University
                 </label>
                 <input
@@ -295,7 +325,10 @@ const Signup = () => {
               </div>
 
               <div>
-                <label htmlFor="major" className="block text-sm font-medium text-slate-700 mb-2">
+                <label
+                  htmlFor="major"
+                  className="block text-sm font-medium text-slate-700 mb-2"
+                >
                   Major
                 </label>
                 <input
@@ -310,9 +343,102 @@ const Signup = () => {
               </div>
             </div>
 
+            {/* Academic Level */}
+            <div>
+              <label
+                htmlFor="academicLevel"
+                className="block text-sm font-medium text-slate-700 mb-2"
+              >
+                Academic Level
+              </label>
+              <select
+                id="academicLevel"
+                name="academicLevel"
+                value={formData.academicLevel}
+                onChange={handleChange}
+                className="block w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all duration-200"
+              >
+                <option value="freshman">Freshman</option>
+                <option value="sophomore">Sophomore</option>
+                <option value="junior">Junior</option>
+                <option value="senior">Senior</option>
+                <option value="graduate">Graduate</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+
+            {/* Interests */}
+            <div>
+              <label
+                htmlFor="interests"
+                className="block text-sm font-medium text-slate-700 mb-2"
+              >
+                Interests{" "}
+                <span className="text-slate-500 text-xs">
+                  (comma-separated, optional)
+                </span>
+              </label>
+              <input
+                id="interests"
+                name="interests"
+                type="text"
+                value={formData.interests}
+                onChange={handleChange}
+                className="block w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all duration-200"
+                placeholder="Coding, Reading, Gaming"
+              />
+            </div>
+
+            {/* Skills */}
+            <div>
+              <label
+                htmlFor="skills"
+                className="block text-sm font-medium text-slate-700 mb-2"
+              >
+                Skills{" "}
+                <span className="text-slate-500 text-xs">
+                  (comma-separated, optional)
+                </span>
+              </label>
+              <input
+                id="skills"
+                name="skills"
+                type="text"
+                value={formData.skills}
+                onChange={handleChange}
+                className="block w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all duration-200"
+                placeholder="JavaScript, Python, React"
+              />
+            </div>
+
+            {/* Goals */}
+            <div>
+              <label
+                htmlFor="goals"
+                className="block text-sm font-medium text-slate-700 mb-2"
+              >
+                Goals{" "}
+                <span className="text-slate-500 text-xs">
+                  (comma-separated, optional)
+                </span>
+              </label>
+              <input
+                id="goals"
+                name="goals"
+                type="text"
+                value={formData.goals}
+                onChange={handleChange}
+                className="block w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all duration-200"
+                placeholder="Get internship, Build portfolio, Network"
+              />
+            </div>
+
             {/* Password */}
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-slate-700 mb-2">
+              <label
+                htmlFor="password"
+                className="block text-sm font-medium text-slate-700 mb-2"
+              >
                 Password
               </label>
               <div className="relative">
@@ -322,7 +448,7 @@ const Signup = () => {
                 <input
                   id="password"
                   name="password"
-                  type={showPassword ? 'text' : 'password'}
+                  type={showPassword ? "text" : "password"}
                   required
                   value={formData.password}
                   onChange={handleChange}
@@ -341,17 +467,23 @@ const Signup = () => {
                   )}
                 </button>
               </div>
-              
+
               {/* Password Strength */}
               {formData.password && (
                 <div className="mt-2">
                   <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs text-slate-600">Password strength:</span>
-                    <span className={`text-xs font-medium ${
-                      passwordStrength <= 1 ? 'text-red-600' : 
-                      passwordStrength <= 3 ? 'text-yellow-600' : 
-                      'text-green-600'
-                    }`}>
+                    <span className="text-xs text-slate-600">
+                      Password strength:
+                    </span>
+                    <span
+                      className={`text-xs font-medium ${
+                        passwordStrength <= 1
+                          ? "text-red-600"
+                          : passwordStrength <= 3
+                          ? "text-yellow-600"
+                          : "text-green-600"
+                      }`}
+                    >
                       {getPasswordStrengthText()}
                     </span>
                   </div>
@@ -367,7 +499,10 @@ const Signup = () => {
 
             {/* Confirm Password */}
             <div>
-              <label htmlFor="confirmPassword" className="block text-sm font-medium text-slate-700 mb-2">
+              <label
+                htmlFor="confirmPassword"
+                className="block text-sm font-medium text-slate-700 mb-2"
+              >
                 Confirm Password
               </label>
               <div className="relative">
@@ -377,7 +512,7 @@ const Signup = () => {
                 <input
                   id="confirmPassword"
                   name="confirmPassword"
-                  type={showConfirmPassword ? 'text' : 'password'}
+                  type={showConfirmPassword ? "text" : "password"}
                   required
                   value={formData.confirmPassword}
                   onChange={handleChange}
@@ -407,13 +542,19 @@ const Signup = () => {
                 required
                 className="h-4 w-4 text-teal-600 focus:ring-teal-500 border-slate-300 rounded mt-1"
               />
-              <label htmlFor="terms" className="ml-2 block text-sm text-slate-700">
-                I agree to the{' '}
+              <label
+                htmlFor="terms"
+                className="ml-2 block text-sm text-slate-700"
+              >
+                I agree to the{" "}
                 <Link to="/terms" className="text-teal-600 hover:text-teal-500">
                   Terms of Service
-                </Link>{' '}
-                and{' '}
-                <Link to="/privacy" className="text-teal-600 hover:text-teal-500">
+                </Link>{" "}
+                and{" "}
+                <Link
+                  to="/privacy"
+                  className="text-teal-600 hover:text-teal-500"
+                >
                   Privacy Policy
                 </Link>
               </label>
@@ -431,7 +572,11 @@ const Signup = () => {
                 <div className="flex items-center space-x-2">
                   <motion.div
                     animate={{ rotate: 360 }}
-                    transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                    transition={{
+                      duration: 1,
+                      repeat: Infinity,
+                      ease: "linear",
+                    }}
                     className="w-5 h-5 border-2 border-white border-t-transparent rounded-full"
                   />
                   <span>Creating account...</span>
