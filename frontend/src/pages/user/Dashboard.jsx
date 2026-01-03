@@ -60,7 +60,7 @@ const UserDashboard = () => {
       description: "Discover matching opportunities",
       icon: Briefcase,
       gradient: "from-purple-500 to-pink-500",
-      link: "/user/jobs",
+      link: "/user/job-recommendation",
     },
     {
       title: "Wellness Check",

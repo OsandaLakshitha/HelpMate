@@ -2,15 +2,6 @@ import React, { useState, useRef } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { API_URL } from "../../config/api";
 
-// Job Recommendation System Flow:
-// 1. User uploads PDF CV
-// 2. Backend extracts text from PDF (pdfExtractor.service.js)
-// 3. Backend matches skills from 8+ fields (skillMatcher.service.js)
-// 4. Backend normalizes skills (skillNormalizer.service.js)
-// 5. Backend fetches jobs from APIs (jobApi.service.js)
-// 6. Backend applies rule-based matching (ruleEngine.service.js)
-// 7. Backend returns: analysis, skillGaps, careerPaths, recommendations
-
 function JobRecomendation() {
   const { token } = useAuth();
   const [file, setFile] = useState(null);
@@ -358,7 +349,7 @@ function JobRecomendation() {
                 Upload Your CV
               </h3>
               <p className="text-slate-600 text-sm">
-                Get instant AI-powered analysis and personalized recommendations
+                Get instant analysis and personalized recommendations
               </p>
             </div>
 
@@ -472,7 +463,7 @@ function JobRecomendation() {
                           d="M13 10V3L4 14h7v7l9-11h-7z"
                         />
                       </svg>
-                      <span>Get AI Analysis</span>
+                      <span>Get CV Analysis</span>
                     </>
                   )}
                 </button>
@@ -535,7 +526,7 @@ function JobRecomendation() {
           {/* Section Header */}
           <div className="text-center">
             <h2 className="text-3xl md:text-4xl font-bold text-slate-900 mb-3">
-              Your AI-Powered Career Insights
+              Your Career Insights
             </h2>
             <p className="text-lg text-slate-600 max-w-2xl mx-auto">
               Based on your CV analysis, here's what we discovered about your
