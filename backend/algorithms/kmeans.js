@@ -1,22 +1,12 @@
-/**
- * K-Means Clustering Algorithm
- * Groups data points into clusters based on similarity
- *
- * Usage:
- *   const kmeans = new KMeansClustering(3);  // Create 3 groups
- *   const groups = kmeans.cluster(data);     // Group the data
- *   const myGroup = kmeans.findGroup(point); // Find which group a point belongs to
- */
-
+// create 3 groups
 class KMeansClustering {
   constructor(k = 3) {
-    this.k = k; // Number of groups to create
-    this.centroids = []; // Center points of each group
+    this.k = k;
+    this.centroids = [];
   }
 
   /**
    * Calculate distance between two data points
-   * Uses Euclidean distance formula: √((x1-x2)² + (y1-y2)² + ...)
    */
   calculateDistance(point1, point2) {
     let sum = 0;
@@ -27,7 +17,7 @@ class KMeansClustering {
   }
 
   /**
-   * Initialize centroids by randomly selecting data points
+   * Initialize centers by randomly selecting data points
    */
   initializeCentroids(data) {
     const shuffled = [...data].sort(() => Math.random() - 0.5);
@@ -36,7 +26,6 @@ class KMeansClustering {
 
   /**
    * Assign each data point to the nearest centroid
-   * Returns array of group assignments (e.g., [0, 1, 0, 2, 1, ...])
    */
   assignToGroups(data) {
     return data.map((point) => {
@@ -68,11 +57,10 @@ class KMeansClustering {
   }
 
   /**
-   * Main clustering method
    * Groups data into k clusters and returns group assignments
    *
-   * @param {Array} data - Array of data points (each point is an array of numbers)
-   * @returns {Array} - Array of group numbers (0 to k-1)
+   * @param {Array} data
+   * @returns {Array}
    */
   cluster(data) {
     if (data.length === 0) {
@@ -99,8 +87,8 @@ class KMeansClustering {
    * Find which group a new data point belongs to
    * Must call cluster() first to initialize centroids
    *
-   * @param {Array} point - Single data point (array of numbers)
-   * @returns {number} - Group number (0 to k-1)
+   * @param {Array} point
+   * @returns {number}
    */
   findGroup(point) {
     if (this.centroids.length === 0) {
