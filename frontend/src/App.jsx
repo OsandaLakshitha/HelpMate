@@ -14,6 +14,7 @@ import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import AdminLayout from "./components/admin/AdminLayout";
 import UserLayout from "./components/user/UserLayout";
+import UserNavbar from "./components/user/UserNavbar";
 
 // Public Pages
 import Home from "./pages/Home";
@@ -40,9 +41,9 @@ import UserProfile from "./pages/user/Profile";
 import UserSettings from "./pages/user/Settings";
 import JobRecomendation from "./pages/user/JobRecomendation";
 import PeerMatching from "./pages/user/PeerMatching";
-import NotesUpload from './pages/user/NotesUpload';
-import MyNotes from './pages/user/MyNotes';
-import NoteDetail from './pages/user/NoteDetail';
+import NotesUpload from "./pages/user/NotesUpload";
+import MyNotes from "./pages/user/MyNotes";
+import NoteDetail from "./pages/user/NoteDetail";
 
 // 404 Page
 import NotFound from "./pages/NotFound";
@@ -87,6 +88,7 @@ function App() {
             element={
               <ProtectedRoute>
                 <UserLayout />
+                <UserNavbar />
               </ProtectedRoute>
             }
           >
