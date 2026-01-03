@@ -1,10 +1,7 @@
 const User = require("../models/User");
+const ConnectionRequest = require("../models/ConnectionRequest");
 const KMeansClustering = require("../algorithms/kmeans");
 const { userToNumbers, calculateMatchScore } = require("../utils/peerMatching");
-const {
-  sendConnectionEmail,
-  formatConnectionEmail,
-} = require("../services/email.service");
 
 // Update user profile (interests and skills)
 exports.updateProfile = async (req, res) => {
@@ -287,22 +284,34 @@ exports.sendConnectionRequest = async (req, res) => {
       });
     }
 
-    // Format and send connection email
-    const emailData = formatConnectionEmail(sender, recipient, message);
+    // Check if connection request already exists
+    const existingRequest = await ConnectionRequest.findOne({
+      sender: senderId,
+      recipient: recipientId,
+    });
 
-    try {
-      await sendConnectionEmail(emailData);
-    } catch (emailError) {
-      console.error("Email sending failed:", emailError);
-      // Continue even if email fails - you might want to handle this differently
+    if (existingRequest) {
+      return res.status(400).json({
+        success: false,
+        message: "Connection request already sent to this user",
+      });
     }
+
+    // Save connection request to database
+    const connectionRequest = await ConnectionRequest.create({
+      sender: senderId,
+      recipient: recipientId,
+      message: message || "Hey! I'd love to connect and study together!",
+      status: "pending",
+    });
 
     res.status(200).json({
       success: true,
       message: "Connection request sent successfully",
       data: {
+        requestId: connectionRequest._id,
         recipientName: `${recipient.firstName} ${recipient.lastName}`,
-        recipientEmail: recipient.email,
+        sentAt: connectionRequest.sentAt,
       },
     });
   } catch (error) {
@@ -310,6 +319,186 @@ exports.sendConnectionRequest = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Error sending connection request",
+      error: error.message,
+    });
+  }
+};
+
+// Get sent connection requests
+exports.getSentConnectionRequests = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const { page = 1, limit = 20 } = req.query;
+
+    const connectionRequests = await ConnectionRequest.find({
+      sender: userId,
+    })
+      .populate(
+        "recipient",
+        "firstName lastName avatar university major academicLevel"
+      )
+      .sort({ sentAt: -1 })
+      .limit(parseInt(limit))
+      .skip((parseInt(page) - 1) * parseInt(limit));
+
+    const total = await ConnectionRequest.countDocuments({ sender: userId });
+
+    res.status(200).json({
+      success: true,
+      data: {
+        requests: connectionRequests,
+        pagination: {
+          currentPage: parseInt(page),
+          totalPages: Math.ceil(total / parseInt(limit)),
+          totalRequests: total,
+          limit: parseInt(limit),
+        },
+      },
+    });
+  } catch (error) {
+    console.error("Get sent connection requests error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error fetching sent connection requests",
+      error: error.message,
+    });
+  }
+};
+
+// Get received connection requests
+exports.getReceivedConnectionRequests = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const { page = 1, limit = 20, status } = req.query;
+
+    const query = {
+      recipient: userId,
+    };
+
+    // Filter by status if provided
+    if (status) {
+      query.status = status;
+    }
+
+    const connectionRequests = await ConnectionRequest.find(query)
+      .populate(
+        "sender",
+        "firstName lastName avatar university major academicLevel interests skills"
+      )
+      .sort({ sentAt: -1 })
+      .limit(parseInt(limit))
+      .skip((parseInt(page) - 1) * parseInt(limit));
+
+    const total = await ConnectionRequest.countDocuments(query);
+    const pendingCount = await ConnectionRequest.countDocuments({
+      recipient: userId,
+      status: "pending",
+    });
+
+    res.status(200).json({
+      success: true,
+      data: {
+        requests: connectionRequests,
+        pendingCount,
+        pagination: {
+          currentPage: parseInt(page),
+          totalPages: Math.ceil(total / parseInt(limit)),
+          totalRequests: total,
+          limit: parseInt(limit),
+        },
+      },
+    });
+  } catch (error) {
+    console.error("Get received connection requests error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error fetching received connection requests",
+      error: error.message,
+    });
+  }
+};
+
+// Accept connection request
+exports.acceptConnectionRequest = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const { requestId } = req.params;
+
+    const connectionRequest = await ConnectionRequest.findOne({
+      _id: requestId,
+      recipient: userId,
+    }).populate("sender", "firstName lastName");
+
+    if (!connectionRequest) {
+      return res.status(404).json({
+        success: false,
+        message: "Connection request not found",
+      });
+    }
+
+    if (connectionRequest.status !== "pending") {
+      return res.status(400).json({
+        success: false,
+        message: `Connection request already ${connectionRequest.status}`,
+      });
+    }
+
+    connectionRequest.status = "accepted";
+    await connectionRequest.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Connection request accepted",
+      data: connectionRequest,
+    });
+  } catch (error) {
+    console.error("Accept connection request error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error accepting connection request",
+      error: error.message,
+    });
+  }
+};
+
+// Decline connection request
+exports.declineConnectionRequest = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const { requestId } = req.params;
+
+    const connectionRequest = await ConnectionRequest.findOne({
+      _id: requestId,
+      recipient: userId,
+    }).populate("sender", "firstName lastName");
+
+    if (!connectionRequest) {
+      return res.status(404).json({
+        success: false,
+        message: "Connection request not found",
+      });
+    }
+
+    if (connectionRequest.status !== "pending") {
+      return res.status(400).json({
+        success: false,
+        message: `Connection request already ${connectionRequest.status}`,
+      });
+    }
+
+    connectionRequest.status = "declined";
+    await connectionRequest.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Connection request declined",
+      data: connectionRequest,
+    });
+  } catch (error) {
+    console.error("Decline connection request error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error declining connection request",
       error: error.message,
     });
   }
