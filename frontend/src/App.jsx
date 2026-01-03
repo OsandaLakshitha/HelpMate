@@ -14,6 +14,7 @@ import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import AdminLayout from "./components/admin/AdminLayout";
 import UserLayout from "./components/user/UserLayout";
+import UserNavbar from "./components/user/UserNavbar";    
 
 // Public Pages
 import Home from "./pages/Home";
@@ -87,6 +88,7 @@ function App() {
             element={
               <ProtectedRoute>
                 <UserLayout />
+                <UserNavbar />
               </ProtectedRoute>
             }
           >
