@@ -1,5 +1,3 @@
-# HelpMate - Intelligent Study Content Generation Module
-
 > A Multi-Agent Adaptive Study Scheduling System with Deadline-Aware Content Delivery
 
 ## 📚 Overview
