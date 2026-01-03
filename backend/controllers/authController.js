@@ -1,11 +1,11 @@
-const User = require('../models/User');
-const jwt = require('jsonwebtoken');
-const crypto = require('crypto');
+const User = require("../models/User");
+const jwt = require("jsonwebtoken");
+const crypto = require("crypto");
 
 // Generate JWT Token
 const generateToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, {
-    expiresIn: process.env.JWT_EXPIRE || '30d',
+    expiresIn: process.env.JWT_EXPIRE || "30d",
   });
 };
 
@@ -14,13 +14,24 @@ const generateToken = (id) => {
 // @access  Public
 exports.register = async (req, res) => {
   try {
-    const { firstName, lastName, email, password, university, major } = req.body;
+    const {
+      firstName,
+      lastName,
+      email,
+      password,
+      university,
+      major,
+      interests,
+      skills,
+      academicLevel,
+      goals,
+    } = req.body;
 
     // Validation
     if (!firstName || !lastName || !email || !password) {
       return res.status(400).json({
         success: false,
-        message: 'Please provide all required fields',
+        message: "Please provide all required fields",
       });
     }
 
@@ -29,7 +40,7 @@ exports.register = async (req, res) => {
     if (existingUser) {
       return res.status(400).json({
         success: false,
-        message: 'User already exists with this email',
+        message: "User already exists with this email",
       });
     }
 
@@ -41,6 +52,10 @@ exports.register = async (req, res) => {
       password,
       university,
       major,
+      interests,
+      skills,
+      academicLevel,
+      goals,
     });
 
     // Generate token
@@ -48,7 +63,7 @@ exports.register = async (req, res) => {
 
     res.status(201).json({
       success: true,
-      message: 'Registration successful',
+      message: "Registration successful",
       token,
       user: {
         id: user._id,
@@ -59,13 +74,17 @@ exports.register = async (req, res) => {
         plan: user.plan,
         university: user.university,
         major: user.major,
+        interests: user.interests,
+        skills: user.skills,
+        academicLevel: user.academicLevel,
+        goals: user.goals,
       },
     });
   } catch (error) {
-    console.error('Registration error:', error);
+    console.error("Registration error:", error);
     res.status(500).json({
       success: false,
-      message: 'Server error during registration',
+      message: "Server error during registration",
       error: error.message,
     });
   }
@@ -82,17 +101,17 @@ exports.login = async (req, res) => {
     if (!email || !password) {
       return res.status(400).json({
         success: false,
-        message: 'Please provide email and password',
+        message: "Please provide email and password",
       });
     }
 
     // Check for user (include password for comparison)
-    const user = await User.findOne({ email }).select('+password');
+    const user = await User.findOne({ email }).select("+password");
 
     if (!user) {
       return res.status(401).json({
         success: false,
-        message: 'Invalid credentials',
+        message: "Invalid credentials",
       });
     }
 
@@ -100,7 +119,7 @@ exports.login = async (req, res) => {
     if (!user.isActive) {
       return res.status(401).json({
         success: false,
-        message: 'Your account has been deactivated. Please contact support.',
+        message: "Your account has been deactivated. Please contact support.",
       });
     }
 
@@ -110,7 +129,7 @@ exports.login = async (req, res) => {
     if (!isPasswordCorrect) {
       return res.status(401).json({
         success: false,
-        message: 'Invalid credentials',
+        message: "Invalid credentials",
       });
     }
 
@@ -123,7 +142,7 @@ exports.login = async (req, res) => {
 
     res.json({
       success: true,
-      message: 'Login successful',
+      message: "Login successful",
       token,
       user: {
         id: user._id,
@@ -135,13 +154,17 @@ exports.login = async (req, res) => {
         university: user.university,
         major: user.major,
         avatar: user.avatar,
+        interests: user.interests,
+        skills: user.skills,
+        academicLevel: user.academicLevel,
+        goals: user.goals,
       },
     });
   } catch (error) {
-    console.error('Login error:', error);
+    console.error("Login error:", error);
     res.status(500).json({
       success: false,
-      message: 'Server error during login',
+      message: "Server error during login",
       error: error.message,
     });
   }
@@ -159,10 +182,10 @@ exports.getMe = async (req, res) => {
       user,
     });
   } catch (error) {
-    console.error('Get me error:', error);
+    console.error("Get me error:", error);
     res.status(500).json({
       success: false,
-      message: 'Server error',
+      message: "Server error",
     });
   }
 };
@@ -172,14 +195,23 @@ exports.getMe = async (req, res) => {
 // @access  Private
 exports.updateProfile = async (req, res) => {
   try {
-    const { firstName, lastName, university, major } = req.body;
+    const {
+      firstName,
+      lastName,
+      university,
+      major,
+      interests,
+      skills,
+      academicLevel,
+      goals,
+    } = req.body;
 
     const user = await User.findById(req.user.id);
 
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: 'User not found',
+        message: "User not found",
       });
     }
 
@@ -188,19 +220,23 @@ exports.updateProfile = async (req, res) => {
     if (lastName) user.lastName = lastName;
     if (university) user.university = university;
     if (major) user.major = major;
+    if (interests !== undefined) user.interests = interests;
+    if (skills !== undefined) user.skills = skills;
+    if (academicLevel) user.academicLevel = academicLevel;
+    if (goals !== undefined) user.goals = goals;
 
     await user.save();
 
     res.json({
       success: true,
-      message: 'Profile updated successfully',
+      message: "Profile updated successfully",
       user,
     });
   } catch (error) {
-    console.error('Update profile error:', error);
+    console.error("Update profile error:", error);
     res.status(500).json({
       success: false,
-      message: 'Server error',
+      message: "Server error",
     });
   }
 };
@@ -215,11 +251,11 @@ exports.updatePassword = async (req, res) => {
     if (!currentPassword || !newPassword) {
       return res.status(400).json({
         success: false,
-        message: 'Please provide current and new password',
+        message: "Please provide current and new password",
       });
     }
 
-    const user = await User.findById(req.user.id).select('+password');
+    const user = await User.findById(req.user.id).select("+password");
 
     // Check current password
     const isPasswordCorrect = await user.comparePassword(currentPassword);
@@ -227,7 +263,7 @@ exports.updatePassword = async (req, res) => {
     if (!isPasswordCorrect) {
       return res.status(401).json({
         success: false,
-        message: 'Current password is incorrect',
+        message: "Current password is incorrect",
       });
     }
 
@@ -240,14 +276,14 @@ exports.updatePassword = async (req, res) => {
 
     res.json({
       success: true,
-      message: 'Password updated successfully',
+      message: "Password updated successfully",
       token,
     });
   } catch (error) {
-    console.error('Update password error:', error);
+    console.error("Update password error:", error);
     res.status(500).json({
       success: false,
-      message: 'Server error',
+      message: "Server error",
     });
   }
 };
@@ -264,18 +300,18 @@ exports.forgotPassword = async (req, res) => {
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: 'No user found with that email',
+        message: "No user found with that email",
       });
     }
 
     // Generate reset token
-    const resetToken = crypto.randomBytes(20).toString('hex');
+    const resetToken = crypto.randomBytes(20).toString("hex");
 
     // Hash token and set to resetPasswordToken field
     user.resetPasswordToken = crypto
-      .createHash('sha256')
+      .createHash("sha256")
       .update(resetToken)
-      .digest('hex');
+      .digest("hex");
 
     // Set expire (10 minutes)
     user.resetPasswordExpire = Date.now() + 10 * 60 * 1000;
@@ -286,14 +322,14 @@ exports.forgotPassword = async (req, res) => {
     // For now, just return the token (DO NOT DO THIS IN PRODUCTION)
     res.json({
       success: true,
-      message: 'Password reset email sent',
+      message: "Password reset email sent",
       resetToken, // Remove this in production
     });
   } catch (error) {
-    console.error('Forgot password error:', error);
+    console.error("Forgot password error:", error);
     res.status(500).json({
       success: false,
-      message: 'Server error',
+      message: "Server error",
     });
   }
 };
@@ -307,9 +343,9 @@ exports.resetPassword = async (req, res) => {
 
     // Get hashed token
     const resetPasswordToken = crypto
-      .createHash('sha256')
+      .createHash("sha256")
       .update(req.params.resetToken)
-      .digest('hex');
+      .digest("hex");
 
     const user = await User.findOne({
       resetPasswordToken,
@@ -319,7 +355,7 @@ exports.resetPassword = async (req, res) => {
     if (!user) {
       return res.status(400).json({
         success: false,
-        message: 'Invalid or expired reset token',
+        message: "Invalid or expired reset token",
       });
     }
 
@@ -334,14 +370,14 @@ exports.resetPassword = async (req, res) => {
 
     res.json({
       success: true,
-      message: 'Password reset successful',
+      message: "Password reset successful",
       token,
     });
   } catch (error) {
-    console.error('Reset password error:', error);
+    console.error("Reset password error:", error);
     res.status(500).json({
       success: false,
-      message: 'Server error',
+      message: "Server error",
     });
   }
 };
