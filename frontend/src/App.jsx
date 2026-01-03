@@ -14,7 +14,7 @@ import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import AdminLayout from "./components/admin/AdminLayout";
 import UserLayout from "./components/user/UserLayout";
-import UserNavbar from "./components/user/UserNavbar";    
+import UserNavbar from "./components/user/UserNavbar";
 
 // Public Pages
 import Home from "./pages/Home";
@@ -100,7 +100,7 @@ function App() {
             <Route path="files" element={<UserFiles />} />
             <Route path="profile" element={<UserProfile />} />
             <Route path="settings" element={<UserSettings />} />
-            <Route path="jobs" element={<JobRecomendation />} />
+            <Route path="job-recommendation" element={<JobRecomendation />} />
             <Route path="peer-matching" element={<PeerMatching />} />
             <Route path="/user/notes/upload" element={<NotesUpload />} />
             <Route path="/user/notes/list" element={<MyNotes />} />

@@ -1,4 +1,5 @@
 const User = require("../models/User");
+const ConnectionRequest = require("../models/ConnectionRequest");
 const KMeansClustering = require("../algorithms/kmeans");
 const { userToNumbers, calculateMatchScore } = require("../utils/peerMatching");
 
@@ -56,10 +57,11 @@ exports.getPeerMatches = async (req, res) => {
       });
     }
 
-    // Get all other active users
+    // Get all other active users with role 'User' only (exclude Admin)
     const allUsers = await User.find({
       _id: { $ne: userId },
       isActive: true,
+      role: { $regex: /^user$/i },
     }).select(
       "firstName lastName avatar university major academicLevel interests skills plan"
     );
@@ -208,6 +210,7 @@ exports.getAllUsers = async (req, res) => {
     const query = {
       _id: { $ne: userId },
       isActive: true,
+      role: { $regex: /^user$/i },
     };
 
     // Search by name, university, interests, or skills
@@ -248,6 +251,254 @@ exports.getAllUsers = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Error fetching users",
+      error: error.message,
+    });
+  }
+};
+
+// Send connection request email
+exports.sendConnectionRequest = async (req, res) => {
+  try {
+    const senderId = req.user._id;
+    const { recipientId, message } = req.body;
+
+    if (!recipientId) {
+      return res.status(400).json({
+        success: false,
+        message: "Recipient ID is required",
+      });
+    }
+
+    // Get sender and recipient details
+    const sender = await User.findById(senderId).select(
+      "firstName lastName email university major"
+    );
+    const recipient = await User.findById(recipientId).select(
+      "firstName lastName email"
+    );
+
+    if (!recipient) {
+      return res.status(404).json({
+        success: false,
+        message: "Recipient not found",
+      });
+    }
+
+    // Check if connection request already exists
+    const existingRequest = await ConnectionRequest.findOne({
+      sender: senderId,
+      recipient: recipientId,
+    });
+
+    if (existingRequest) {
+      return res.status(400).json({
+        success: false,
+        message: "Connection request already sent to this user",
+      });
+    }
+
+    // Save connection request to database
+    const connectionRequest = await ConnectionRequest.create({
+      sender: senderId,
+      recipient: recipientId,
+      message: message || "Hey! I'd love to connect and study together!",
+      status: "pending",
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Connection request sent successfully",
+      data: {
+        requestId: connectionRequest._id,
+        recipientName: `${recipient.firstName} ${recipient.lastName}`,
+        sentAt: connectionRequest.sentAt,
+      },
+    });
+  } catch (error) {
+    console.error("Send connection request error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error sending connection request",
+      error: error.message,
+    });
+  }
+};
+
+// Get sent connection requests
+exports.getSentConnectionRequests = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const { page = 1, limit = 20 } = req.query;
+
+    const connectionRequests = await ConnectionRequest.find({
+      sender: userId,
+    })
+      .populate(
+        "recipient",
+        "firstName lastName avatar university major academicLevel"
+      )
+      .sort({ sentAt: -1 })
+      .limit(parseInt(limit))
+      .skip((parseInt(page) - 1) * parseInt(limit));
+
+    const total = await ConnectionRequest.countDocuments({ sender: userId });
+
+    res.status(200).json({
+      success: true,
+      data: {
+        requests: connectionRequests,
+        pagination: {
+          currentPage: parseInt(page),
+          totalPages: Math.ceil(total / parseInt(limit)),
+          totalRequests: total,
+          limit: parseInt(limit),
+        },
+      },
+    });
+  } catch (error) {
+    console.error("Get sent connection requests error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error fetching sent connection requests",
+      error: error.message,
+    });
+  }
+};
+
+// Get received connection requests
+exports.getReceivedConnectionRequests = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const { page = 1, limit = 20, status } = req.query;
+
+    const query = {
+      recipient: userId,
+    };
+
+    // Filter by status if provided
+    if (status) {
+      query.status = status;
+    }
+
+    const connectionRequests = await ConnectionRequest.find(query)
+      .populate(
+        "sender",
+        "firstName lastName avatar university major academicLevel interests skills"
+      )
+      .sort({ sentAt: -1 })
+      .limit(parseInt(limit))
+      .skip((parseInt(page) - 1) * parseInt(limit));
+
+    const total = await ConnectionRequest.countDocuments(query);
+    const pendingCount = await ConnectionRequest.countDocuments({
+      recipient: userId,
+      status: "pending",
+    });
+
+    res.status(200).json({
+      success: true,
+      data: {
+        requests: connectionRequests,
+        pendingCount,
+        pagination: {
+          currentPage: parseInt(page),
+          totalPages: Math.ceil(total / parseInt(limit)),
+          totalRequests: total,
+          limit: parseInt(limit),
+        },
+      },
+    });
+  } catch (error) {
+    console.error("Get received connection requests error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error fetching received connection requests",
+      error: error.message,
+    });
+  }
+};
+
+// Accept connection request
+exports.acceptConnectionRequest = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const { requestId } = req.params;
+
+    const connectionRequest = await ConnectionRequest.findOne({
+      _id: requestId,
+      recipient: userId,
+    }).populate("sender", "firstName lastName");
+
+    if (!connectionRequest) {
+      return res.status(404).json({
+        success: false,
+        message: "Connection request not found",
+      });
+    }
+
+    if (connectionRequest.status !== "pending") {
+      return res.status(400).json({
+        success: false,
+        message: `Connection request already ${connectionRequest.status}`,
+      });
+    }
+
+    connectionRequest.status = "accepted";
+    await connectionRequest.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Connection request accepted",
+      data: connectionRequest,
+    });
+  } catch (error) {
+    console.error("Accept connection request error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error accepting connection request",
+      error: error.message,
+    });
+  }
+};
+
+// Decline connection request
+exports.declineConnectionRequest = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const { requestId } = req.params;
+
+    const connectionRequest = await ConnectionRequest.findOne({
+      _id: requestId,
+      recipient: userId,
+    }).populate("sender", "firstName lastName");
+
+    if (!connectionRequest) {
+      return res.status(404).json({
+        success: false,
+        message: "Connection request not found",
+      });
+    }
+
+    if (connectionRequest.status !== "pending") {
+      return res.status(400).json({
+        success: false,
+        message: `Connection request already ${connectionRequest.status}`,
+      });
+    }
+
+    connectionRequest.status = "declined";
+    await connectionRequest.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Connection request declined",
+      data: connectionRequest,
+    });
+  } catch (error) {
+    console.error("Decline connection request error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error declining connection request",
       error: error.message,
     });
   }
