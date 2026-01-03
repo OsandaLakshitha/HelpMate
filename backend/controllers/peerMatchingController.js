@@ -1,6 +1,10 @@
 const User = require("../models/User");
 const KMeansClustering = require("../algorithms/kmeans");
 const { userToNumbers, calculateMatchScore } = require("../utils/peerMatching");
+const {
+  sendConnectionEmail,
+  formatConnectionEmail,
+} = require("../services/email.service");
 
 // Update user profile (interests and skills)
 exports.updateProfile = async (req, res) => {
@@ -250,6 +254,62 @@ exports.getAllUsers = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Error fetching users",
+      error: error.message,
+    });
+  }
+};
+
+// Send connection request email
+exports.sendConnectionRequest = async (req, res) => {
+  try {
+    const senderId = req.user._id;
+    const { recipientId, message } = req.body;
+
+    if (!recipientId) {
+      return res.status(400).json({
+        success: false,
+        message: "Recipient ID is required",
+      });
+    }
+
+    // Get sender and recipient details
+    const sender = await User.findById(senderId).select(
+      "firstName lastName email university major"
+    );
+    const recipient = await User.findById(recipientId).select(
+      "firstName lastName email"
+    );
+
+    if (!recipient) {
+      return res.status(404).json({
+        success: false,
+        message: "Recipient not found",
+      });
+    }
+
+    // Format and send connection email
+    const emailData = formatConnectionEmail(sender, recipient, message);
+
+    try {
+      await sendConnectionEmail(emailData);
+    } catch (emailError) {
+      console.error("Email sending failed:", emailError);
+      // Continue even if email fails - you might want to handle this differently
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Connection request sent successfully",
+      data: {
+        recipientName: `${recipient.firstName} ${recipient.lastName}`,
+        recipientEmail: recipient.email,
+      },
+    });
+  } catch (error) {
+    console.error("Send connection request error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error sending connection request",
       error: error.message,
     });
   }

@@ -6,6 +6,7 @@ const {
   getProfile,
   getUserProfile,
   getAllUsers,
+  sendConnectionRequest,
 } = require("../controllers/peerMatchingController");
 const { protect } = require("../middleware/auth");
 
@@ -29,5 +30,8 @@ router.get("/matches", getPeerMatches);
 router.get("/users", getAllUsers);
 
 router.get("/users/:userId", getUserProfile);
+
+// @route   POST /api/peer-matching/connect
+router.post("/connect", sendConnectionRequest);
 
 module.exports = router;
