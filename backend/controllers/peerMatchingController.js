@@ -2,6 +2,10 @@ const User = require("../models/User");
 const ConnectionRequest = require("../models/ConnectionRequest");
 const KMeansClustering = require("../algorithms/kmeans");
 const { userToNumbers, calculateMatchScore } = require("../utils/peerMatching");
+const {
+  sendConnectionEmail,
+  formatConnectionEmail,
+} = require("../services/email.service");
 
 // Update user profile (interests and skills)
 exports.updateProfile = async (req, res) => {
