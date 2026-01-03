@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { useAuth } from '../../context/AuthContext';
-import { Link } from 'react-router-dom';
+import React, { useState, useEffect } from "react";
+import { motion } from "framer-motion";
+import { useAuth } from "../../context/AuthContext";
+import { Link } from "react-router-dom";
 import {
   BookOpen,
   Briefcase,
@@ -20,7 +20,7 @@ import {
   Sparkles,
   Brain,
   BarChart,
-} from 'lucide-react';
+} from "lucide-react";
 
 const UserDashboard = () => {
   const { user } = useAuth();
@@ -35,47 +35,67 @@ const UserDashboard = () => {
 
   const quickActions = [
     {
-      title: 'Upload Notes',
-      description: 'Transform your notes into flashcards',
+      title: "Upload Notes",
+      description: "Transform your notes into flashcards",
       icon: Upload,
-      gradient: 'from-teal-500 to-cyan-500',
-      link: '/user/notes/upload',
+      gradient: "from-teal-500 to-cyan-500",
+      link: "/user/notes/upload",
     },
     {
-      title: 'All Notes',
-      description: 'Transform your notes into flashcards',
+      title: "All Notes",
+      description: "Transform your notes into flashcards",
       icon: Upload,
-      gradient: 'from-teal-500 to-cyan-500',
-      link: '/user/notes/list',
+      gradient: "from-teal-500 to-cyan-500",
+      link: "/user/notes/list",
     },
     {
-      title: 'Analyze CV',
-      description: 'Get AI-powered CV insights',
+      title: "Peer Matching",
+      description: "Find study partners",
       icon: FileText,
-      gradient: 'from-blue-500 to-indigo-500',
-      link: '/user/cv/analyze',
+      gradient: "from-blue-500 to-indigo-500",
+      link: "/user/peer-matching",
     },
     {
-      title: 'Find Jobs',
-      description: 'Discover matching opportunities',
+      title: "Analyze CV , Find Jobs",
+      description: "Discover matching opportunities",
       icon: Briefcase,
-      gradient: 'from-purple-500 to-pink-500',
-      link: '/user/jobs',
+      gradient: "from-purple-500 to-pink-500",
+      link: "/user/jobs",
     },
     {
-      title: 'Wellness Check',
-      description: 'Track your mental health',
+      title: "Wellness Check",
+      description: "Track your mental health",
       icon: Heart,
-      gradient: 'from-emerald-500 to-teal-500',
-      link: '/user/wellness',
+      gradient: "from-emerald-500 to-teal-500",
+      link: "/user/wellness",
     },
   ];
 
   const recentActivities = [
-    { type: 'note', title: 'Introduction to Algorithms', date: '2 hours ago', status: 'completed' },
-    { type: 'cv', title: 'CV Analysis - Software Engineer', date: '1 day ago', status: 'completed' },
-    { type: 'job', title: 'Applied to Google Internship', date: '2 days ago', status: 'pending' },
-    { type: 'wellness', title: 'Completed Meditation Session', date: '3 days ago', status: 'completed' },
+    {
+      type: "note",
+      title: "Introduction to Algorithms",
+      date: "2 hours ago",
+      status: "completed",
+    },
+    {
+      type: "cv",
+      title: "CV Analysis - Software Engineer",
+      date: "1 day ago",
+      status: "completed",
+    },
+    {
+      type: "job",
+      title: "Applied to Google Internship",
+      date: "2 days ago",
+      status: "pending",
+    },
+    {
+      type: "wellness",
+      title: "Completed Meditation Session",
+      date: "3 days ago",
+      status: "completed",
+    },
   ];
 
   return (
@@ -94,21 +114,31 @@ const UserDashboard = () => {
             </div>
             <div className="flex items-center space-x-3">
               {/* Plan Badge */}
-              <div className={`px-4 py-2 rounded-full flex items-center space-x-2 ${
-                user?.plan === 'Free' ? 'bg-slate-100' :
-                user?.plan === 'Pro' ? 'bg-gradient-to-r from-teal-500 to-cyan-500' :
-                'bg-gradient-to-r from-purple-500 to-indigo-500'
-              }`}>
-                {user?.plan === 'Pro' ? <Crown className="w-4 h-4 text-white" /> :
-                 user?.plan === 'Enterprise' ? <Award className="w-4 h-4 text-white" /> :
-                 <Zap className="w-4 h-4 text-slate-600" />}
-                <span className={`font-semibold text-sm ${
-                  user?.plan === 'Free' ? 'text-slate-700' : 'text-white'
-                }`}>
+              <div
+                className={`px-4 py-2 rounded-full flex items-center space-x-2 ${
+                  user?.plan === "Free"
+                    ? "bg-slate-100"
+                    : user?.plan === "Pro"
+                    ? "bg-gradient-to-r from-teal-500 to-cyan-500"
+                    : "bg-gradient-to-r from-purple-500 to-indigo-500"
+                }`}
+              >
+                {user?.plan === "Pro" ? (
+                  <Crown className="w-4 h-4 text-white" />
+                ) : user?.plan === "Enterprise" ? (
+                  <Award className="w-4 h-4 text-white" />
+                ) : (
+                  <Zap className="w-4 h-4 text-slate-600" />
+                )}
+                <span
+                  className={`font-semibold text-sm ${
+                    user?.plan === "Free" ? "text-slate-700" : "text-white"
+                  }`}
+                >
                   {user?.plan} Plan
                 </span>
               </div>
-              {user?.plan === 'Free' && (
+              {user?.plan === "Free" && (
                 <Link to="/pricing">
                   <motion.button
                     whileHover={{ scale: 1.05 }}
@@ -159,7 +189,9 @@ const UserDashboard = () => {
 
         {/* Quick Actions */}
         <div className="mb-8">
-          <h2 className="text-2xl font-bold text-slate-900 mb-6">Quick Actions</h2>
+          <h2 className="text-2xl font-bold text-slate-900 mb-6">
+            Quick Actions
+          </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {quickActions.map((action, index) => (
               <QuickActionCard key={index} action={action} index={index} />
@@ -172,8 +204,13 @@ const UserDashboard = () => {
           {/* Recent Activity */}
           <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border border-slate-200 p-6">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold text-slate-900">Recent Activity</h2>
-              <Link to="/user/activity" className="text-teal-600 hover:text-teal-700 text-sm font-medium">
+              <h2 className="text-xl font-bold text-slate-900">
+                Recent Activity
+              </h2>
+              <Link
+                to="/user/activity"
+                className="text-teal-600 hover:text-teal-700 text-sm font-medium"
+              >
                 View All
               </Link>
             </div>
@@ -186,7 +223,9 @@ const UserDashboard = () => {
 
           {/* Study Progress */}
           <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-            <h2 className="text-xl font-bold text-slate-900 mb-6">This Week's Progress</h2>
+            <h2 className="text-xl font-bold text-slate-900 mb-6">
+              This Week's Progress
+            </h2>
             <div className="space-y-6">
               <ProgressItem label="Study Goals" value={75} color="teal" />
               <ProgressItem label="Job Applications" value={50} color="blue" />
@@ -195,7 +234,9 @@ const UserDashboard = () => {
 
             <div className="mt-6 pt-6 border-t border-slate-200">
               <div className="flex items-center justify-between mb-3">
-                <span className="text-sm font-medium text-slate-700">Weekly Streak</span>
+                <span className="text-sm font-medium text-slate-700">
+                  Weekly Streak
+                </span>
                 <span className="text-2xl font-bold text-teal-600">7 🔥</span>
               </div>
               <p className="text-xs text-slate-600">
@@ -206,7 +247,7 @@ const UserDashboard = () => {
         </div>
 
         {/* Upgrade CTA (for Free users) */}
-        {user?.plan === 'Free' && (
+        {user?.plan === "Free" && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -218,13 +259,16 @@ const UserDashboard = () => {
               <div className="max-w-xl">
                 <div className="flex items-center space-x-2 mb-3">
                   <Sparkles className="w-6 h-6 text-white" />
-                  <span className="text-white font-semibold">Upgrade to Pro</span>
+                  <span className="text-white font-semibold">
+                    Upgrade to Pro
+                  </span>
                 </div>
                 <h3 className="text-2xl font-bold text-white mb-2">
                   Unlock Premium Features
                 </h3>
                 <p className="text-cyan-100 mb-4">
-                  Get unlimited AI summaries, advanced analytics, and priority support for just $12/month.
+                  Get unlimited AI summaries, advanced analytics, and priority
+                  support for just $12/month.
                 </p>
                 <div className="flex items-center space-x-4">
                   <CheckCircle className="w-5 h-5 text-white" />
@@ -259,7 +303,9 @@ const StatCard = ({ title, value, icon: Icon, gradient, change }) => {
       className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 hover:shadow-lg transition-all"
     >
       <div className="flex items-start justify-between mb-4">
-        <div className={`w-12 h-12 bg-gradient-to-r ${gradient} rounded-lg flex items-center justify-center`}>
+        <div
+          className={`w-12 h-12 bg-gradient-to-r ${gradient} rounded-lg flex items-center justify-center`}
+        >
           <Icon className="w-6 h-6 text-white" />
         </div>
         <span className="text-sm font-semibold text-green-600">{change}</span>
@@ -281,10 +327,14 @@ const QuickActionCard = ({ action, index }) => {
     >
       <Link to={action.link}>
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 hover:shadow-xl transition-all group cursor-pointer">
-          <div className={`w-14 h-14 bg-gradient-to-r ${action.gradient} rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform`}>
+          <div
+            className={`w-14 h-14 bg-gradient-to-r ${action.gradient} rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform`}
+          >
             <action.icon className="w-7 h-7 text-white" />
           </div>
-          <h3 className="text-lg font-bold text-slate-900 mb-2">{action.title}</h3>
+          <h3 className="text-lg font-bold text-slate-900 mb-2">
+            {action.title}
+          </h3>
           <p className="text-sm text-slate-600 mb-3">{action.description}</p>
           <div className="flex items-center text-teal-600 font-medium text-sm group-hover:translate-x-1 transition-transform">
             Get Started <ArrowRight className="w-4 h-4 ml-1" />
@@ -299,11 +349,16 @@ const QuickActionCard = ({ action, index }) => {
 const ActivityItem = ({ activity }) => {
   const getIcon = (type) => {
     switch (type) {
-      case 'note': return BookOpen;
-      case 'cv': return FileText;
-      case 'job': return Briefcase;
-      case 'wellness': return Heart;
-      default: return FileText;
+      case "note":
+        return BookOpen;
+      case "cv":
+        return FileText;
+      case "job":
+        return Briefcase;
+      case "wellness":
+        return Heart;
+      default:
+        return FileText;
     }
   };
 
@@ -311,26 +366,40 @@ const ActivityItem = ({ activity }) => {
 
   return (
     <div className="flex items-center space-x-4 p-4 rounded-lg hover:bg-slate-50 transition-colors">
-      <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-        activity.type === 'note' ? 'bg-teal-100' :
-        activity.type === 'cv' ? 'bg-blue-100' :
-        activity.type === 'job' ? 'bg-purple-100' :
-        'bg-emerald-100'
-      }`}>
-        <Icon className={`w-5 h-5 ${
-          activity.type === 'note' ? 'text-teal-600' :
-          activity.type === 'cv' ? 'text-blue-600' :
-          activity.type === 'job' ? 'text-purple-600' :
-          'text-emerald-600'
-        }`} />
+      <div
+        className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+          activity.type === "note"
+            ? "bg-teal-100"
+            : activity.type === "cv"
+            ? "bg-blue-100"
+            : activity.type === "job"
+            ? "bg-purple-100"
+            : "bg-emerald-100"
+        }`}
+      >
+        <Icon
+          className={`w-5 h-5 ${
+            activity.type === "note"
+              ? "text-teal-600"
+              : activity.type === "cv"
+              ? "text-blue-600"
+              : activity.type === "job"
+              ? "text-purple-600"
+              : "text-emerald-600"
+          }`}
+        />
       </div>
       <div className="flex-1">
         <p className="text-sm font-medium text-slate-900">{activity.title}</p>
         <p className="text-xs text-slate-600">{activity.date}</p>
       </div>
-      <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-        activity.status === 'completed' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
-      }`}>
+      <span
+        className={`px-2 py-1 rounded-full text-xs font-semibold ${
+          activity.status === "completed"
+            ? "bg-green-100 text-green-700"
+            : "bg-yellow-100 text-yellow-700"
+        }`}
+      >
         {activity.status}
       </span>
     </div>
@@ -351,9 +420,11 @@ const ProgressItem = ({ label, value, color }) => {
           animate={{ width: `${value}%` }}
           transition={{ duration: 1, delay: 0.2 }}
           className={`h-2 rounded-full bg-gradient-to-r ${
-            color === 'teal' ? 'from-teal-500 to-cyan-500' :
-            color === 'blue' ? 'from-blue-500 to-indigo-500' :
-            'from-emerald-500 to-teal-500'
+            color === "teal"
+              ? "from-teal-500 to-cyan-500"
+              : color === "blue"
+              ? "from-blue-500 to-indigo-500"
+              : "from-emerald-500 to-teal-500"
           }`}
         />
       </div>
