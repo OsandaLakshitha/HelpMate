@@ -60,7 +60,7 @@ exports.getPeerMatches = async (req, res) => {
     const allUsers = await User.find({
       _id: { $ne: userId },
       isActive: true,
-      role: "User",
+      role: { $regex: /^user$/i },
     }).select(
       "firstName lastName avatar university major academicLevel interests skills plan"
     );
@@ -209,7 +209,7 @@ exports.getAllUsers = async (req, res) => {
     const query = {
       _id: { $ne: userId },
       isActive: true,
-      role: "User" || "user" || "USER",
+      role: { $regex: /^user$/i },
     };
 
     // Search by name, university, interests, or skills
