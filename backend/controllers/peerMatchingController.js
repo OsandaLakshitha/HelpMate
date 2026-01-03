@@ -56,10 +56,11 @@ exports.getPeerMatches = async (req, res) => {
       });
     }
 
-    // Get all other active users
+    // Get all other active users with role 'User' only (exclude Admin)
     const allUsers = await User.find({
       _id: { $ne: userId },
       isActive: true,
+      role: "User",
     }).select(
       "firstName lastName avatar university major academicLevel interests skills plan"
     );
@@ -208,6 +209,7 @@ exports.getAllUsers = async (req, res) => {
     const query = {
       _id: { $ne: userId },
       isActive: true,
+      role: "User" || "user" || "USER",
     };
 
     // Search by name, university, interests, or skills
