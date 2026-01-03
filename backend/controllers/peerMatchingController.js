@@ -2,8 +2,6 @@ const User = require("../models/User");
 const KMeansClustering = require("../algorithms/kmeans");
 const { userToNumbers, calculateMatchScore } = require("../utils/peerMatching");
 
-// ===== STEP 4: API CONTROLLERS =====
-
 // Update user profile (interests and skills)
 exports.updateProfile = async (req, res) => {
   try {

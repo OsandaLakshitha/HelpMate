@@ -1,20 +1,10 @@
 /**
- * Peer Matching Utility Functions
- * Helper functions for converting user profiles and calculating match scores
- */
-
-/**
  * Convert user profile to numbers for clustering
  * Uses only: university, interests, plan, skills, academicLevel
  *
- * @param {Object} user - User object from database
+ * @param {Object} user - 
  * @returns {Array} - Array of 4 numbers representing the user
- *
- * Example output: [3, 5, 8, 1]
- *   [0] = Academic level (1-5)
- *   [1] = Number of interests (0-10)
- *   [2] = Number of skills (0-10)
- *   [3] = Plan type (1-3)
+
  */
 const userToNumbers = (user) => {
   const numbers = [];
@@ -45,10 +35,9 @@ const userToNumbers = (user) => {
 
 /**
  * Calculate match score between two users
- * Uses only: university, interests, plan, skills, academicLevel
  *
- * @param {Object} user1 - First user object
- * @param {Object} user2 - Second user object
+ * @param {Object} user1
+ * @param {Object} user2
  * @returns {number} - Match score (0-100 points)
  *
  * Scoring breakdown:
