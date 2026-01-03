@@ -72,19 +72,32 @@ exports.getPeerMatches = async (req, res) => {
       });
     }
 
-    // Convert all users to numbers
-    const allUsersNumbers = allUsers.map((user) => userToNumbers(user));
-    const currentUserNumbers = userToNumbers(currentUser);
+    // If too few users, skip clustering and show all
+    let myGroupUsers;
+    if (allUsers.length < 6) {
+      // With fewer than 6 users, show all instead of clustering
+      myGroupUsers = allUsers;
+      console.log(
+        `Showing all ${allUsers.length} users (too few for clustering)`
+      );
+    } else {
+      // Convert all users to numbers
+      const allUsersNumbers = allUsers.map((user) => userToNumbers(user));
+      const currentUserNumbers = userToNumbers(currentUser);
 
-    // Create 3 groups using K-Means
-    const kmeans = new KMeansClustering(3);
-    const userGroups = kmeans.cluster(allUsersNumbers);
-    const myGroup = kmeans.findGroup(currentUserNumbers);
+      // Use fewer clusters for small user bases (2 clusters instead of 3)
+      const numClusters = allUsers.length < 12 ? 2 : 3;
+      const kmeans = new KMeansClustering(numClusters);
+      const userGroups = kmeans.cluster(allUsersNumbers);
+      const myGroup = kmeans.findGroup(currentUserNumbers);
 
-    // Get users from my group
-    const myGroupUsers = allUsers.filter(
-      (_, idx) => userGroups[idx] === myGroup
-    );
+      // Get users from my group
+      myGroupUsers = allUsers.filter((_, idx) => userGroups[idx] === myGroup);
+
+      console.log(
+        `Clustered ${allUsers.length} users into ${numClusters} groups. Current user in group ${myGroup}. Found ${myGroupUsers.length} matches.`
+      );
+    }
 
     // Calculate match scores for users in my group
     const matches = myGroupUsers
@@ -92,7 +105,7 @@ exports.getPeerMatches = async (req, res) => {
         user,
         matchScore: calculateMatchScore(currentUser, user),
       }))
-      .filter((match) => match.matchScore > 0) // Only show if some match
+      // Show all users in the group, even with 0 score (new users)
       .sort((a, b) => b.matchScore - a.matchScore) // Highest score first
       .slice(0, parseInt(limit)); // Limit results
 
