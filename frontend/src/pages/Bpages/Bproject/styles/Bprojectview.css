@@ -1,0 +1,54 @@
+/* Container Fixes */
+.MuiContainer-root {
+  max-width: 1400px !important; /* Fixed maximum horizontal size */
+  width: 95%;
+  margin: 2rem auto;
+}
+
+/* Detail Card Styling */
+.project-detail-paper {
+  border-radius: 12px !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05) !important;
+  padding: 32px !important;
+  border: 1px solid #f0f0f0 !important;
+}
+
+/* Field Label Styling */
+.detail-label {
+  font-size: 0.75rem !important;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #64748b;
+  font-weight: 700 !important;
+  margin-bottom: 4px;
+  display: block;
+}
+
+.detail-value {
+  font-size: 1rem !important;
+  color: #1e293b;
+  font-weight: 500 !important;
+}
+
+/* Grid spacing and layout */
+.full-width-field {
+  border-bottom: 1px solid #f1f5f9;
+  padding-bottom: 16px;
+  margin-bottom: 16px;
+}
+
+/* Card fixing for wide screens */
+.MuiPaper-root {
+  width: 100% !important;
+  box-sizing: border-box;
+}
+
+/* Table Enhancements */
+.MuiTableHead-root {
+  background-color: #f8fafc;
+}
+
+.MuiTableCell-head {
+  font-weight: 700 !important;
+  color: #475569 !important;
+}
