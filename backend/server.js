@@ -2,13 +2,20 @@ const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
 const dotenv = require("dotenv");
+const notesRouter = require("./routes/notes");
+const path = require("path");
 
 dotenv.config();
 
 const app = express();
 
 // Middleware
-app.use(cors());
+app.use(
+  cors({
+    origin: "http://localhost:3000", // ← Not '*'
+    credentials: true, // ← Needed for cookies
+  })
+);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -26,10 +33,13 @@ app.use("/api/auth", require("./routes/auth"));
 app.use("/api/admin", require("./routes/admin"));
 app.use("/api/pricing", require("./routes/pricing"));
 app.use("/api", require("./routes/recommendations"));
+app.use("/api/notes", notesRouter);
+app.use("/api/peer-matching", require("./routes/peerMatching"));
+app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
 
 // Health check
 app.get("/api/health", (req, res) => {
-  res.json({ success: true, message: "Server is running" });
+  res.status(200).json({ success: true, message: "Server is running" });
 });
 
 // 404 handler
