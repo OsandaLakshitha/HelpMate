@@ -204,16 +204,16 @@ GET /api/schedule/rl
 
 ### 🎯 Purpose
 
-Improve fairness and transparency in university group projects by tracking individual contributions, reducing free-riding, and supporting better academic evaluation.
+The Smart Academic Group Work Management is designed to make group projects fair, transparent, and efficient. It ensures that every member’s contribution is tracked, deadlines are respected, and supervisors can evaluate performance based on clear data. At its core, the system combines task lifecycle management, proof submission tracking, and contribution analytics to solve the problem of free‑riding and unfair grading in academic group work.
 
-### ✨ Key Features
+✨ Key Features
 
-#### 📝 **Project & Task Management**
-- Create and manage group projects
-- Assign tasks to members with deadlines
-- Track completion status in real-time
-- **Group leader dashboard** for coordination
-- Student self-management tools
+📝 Project & Task Management
+Create and manage group projects
+Assign tasks to members with deadlines and proof
+Track completion status in real-time
+Group project dashboard for coordination
+Student self-management tools with performance dashboard and quick workload summery
 
 <div align="center">
 <img src="https://via.placeholder.com/600x250/FFF9C4/F9A825?text=Task+Assignment+%26+Tracking+Dashboard" alt="Task Dashboard" width="80%"/>
@@ -223,10 +223,10 @@ Improve fairness and transparency in university group projects by tracking indiv
 ```
 Metrics Tracked:
 ├── Number of tasks completed
-├── Contribution percentage
-├── Active time (project interactions)
-├── Task complexity weighting
-└── Participation frequency
+├── task completion duration
+├── Active time (project interactions, task interactions)
+├── Task complexity 
+└── project complexity
 ```
 
 #### 🔍 **Free-Riding Detection** (Rule-Based)
@@ -235,7 +235,7 @@ Identifies low participation using:
 - **Active time** significantly below team average
 - **Task completion count** outliers
 - **Contribution percentage** thresholds
-- Automated alerts for supervisors
+- display on project dashboard for project members and supervisors
 
 #### 📈 **Analytics Dashboard**
 
