@@ -1,197 +1,96 @@
-> A Multi-Agent Adaptive Study Scheduling System with Deadline-Aware Content Delivery
+📘 Smart Academic Group Work Management System
 
-## 📚 Overview
+The Smart Academic Group Work Management System is designed to make group projects fair, transparent, and efficient. It ensures that every member’s contribution is tracked, deadlines are respected, and supervisors can evaluate performance based on clear data.  
+At its core, the system combines task lifecycle management, proof submission tracking, and contribution analytics to solve the problem of free‑riding and unfair grading in academic group work.
 
-HelpMate is an AI-powered adaptive learning platform designed to enhance academic performance through personalized, data-driven study experiences. The Intelligent Study Content Generation Module is the core intelligence engine that transforms passive lecture materials into active learning tools—including quizzes (MCQs), flashcards, and summarized notes—while intelligently aligning their delivery with user-defined exam deadlines and study goals.
 
-## 🎯 The Problem
+ 🎯 The Problem
+Students and supervisors often face challenges in group projects:
+- Unequal contributions and free‑riding  
+- Lack of transparency in task ownership and progress  
+- Missed deadlines due to poor coordination  
+- Difficulty for supervisors to fairly evaluate each member’s work  
 
-Students often struggle with:
-- Poor time management and delayed exam preparation
-- Lack of structured revision resources
-- Manual effort required to create study materials
-- Generic tools that don't integrate with personal schedules
 
-## ✨ The Solution
+✨ The Solution
+The Smart Academic Group Work Management System solves these issues by:
+- Providing task boards with strict status transitions (To Do → In Progress → Review → Completed)  
+- Tracking proof submissions and activity logs for accountability  
+- Offering dashboards that show workload distribution, completion rates, and last active times  
+- Delivering fair contribution scoring normalized by project complexity and type  
 
-HelpMate transforms static lecture notes into an intelligent, proactive tutoring system by:
-- **Automatically converting** uploaded lecture notes into interactive study assets
-- **Dynamically adjusting** what and when to study based on exam dates
-- **Delivering just-in-time practice** as exams approach
 
-## 🚀 Key Features
+🚀 Key Features
 
-### 1. **Lecture Note Upload & Text Extraction**
-- Upload lecture notes in PDF format via `/user/notes/upload`
-- Secure storage using `multer`
-- Text extraction using `pdf-parse`
-- Automatic cleaning and segmentation for processing
+1. Project & Task Lifecycle
+- Create projects and assign tasks by type (Coding, Documentation, Both, Other)  
+- Status transitions enforced for clarity and accountability  
+- Example: Task “Write API Docs” → moves from 'In Progress' → 'Review' → 'Completed'  
 
-**Example**: Upload "Database Design.pdf" → extracts key concepts like normalization, primary keys, ACID properties
+ 2. Proof Submission Tracking
+- Members upload proofs (documents, screenshots, links)  
+- Weekly/monthly activity logs ensure consistent engagement  
+- Example: “Proof of Code Commit” uploaded weekly → tracked in taskboard 
 
-### 2. **AI-Powered Content Generation**
+ 3. Contribution Analytics
+- Tracks tasks created, tasks completed, and time taken for transitions  
+- Calculates fair contribution scores** using ML‑ready data models  
+- Example: Member A completed 5 tasks on time → higher score than Member B with delays  
 
-Using a fine-tuned T5-base model, the system generates:
+4. Deadline Management
+- Each task has a start date, due date, and close date  
+- System compares deadlines vs completion → marks OnTime, Late<15 days, Late<30 days  
+- Example: Task due Jan 10, closed Jan 12 → marked Late<15 days  
 
-#### ✅ Multiple-Choice Questions (MCQs)
-```
-Question: What is the purpose of a foreign key?
-Options: 
-A) To uniquely identify rows
-B) To create relationships between tables ← Correct
-C) To encrypt data
-D) To index queries
-```
+5. Engagement Tracking
+- Logs task views and dashboard visits  
+- Engagement ratio = actions ÷ views  
+- Example: Member viewed dashboard 10 times, submitted 3 proofs → ratio tracked  
 
-#### ✅ Flashcards
-```
-Front: What is normalization?
-Back: The process of organizing data to reduce redundancy and improve integrity.
-```
 
-#### ✅ Summarized Notes
-Abstractive summaries using BART/T5 for concise revision sheets
 
-### 3. **Exam Date Integration**
-```json
-{
-  "subject": "Database Systems",
-  "examDate": "2026-02-15T09:00:00Z"
-}
-```
-- Sync with Google Calendar or internal calendar UI
-- Drives the entire adaptive study schedule
+🏗️ Technical Architecture
 
-### 4. **Deadline-Based Adaptive Content Delivery**
-
-| Time Until Exam | Strategy |
-|----------------|----------|
-| > 3 weeks | Generate all content; suggest weekly review sessions |
-| 2–3 weeks | Begin low-intensity spaced repetition (every 5 days) |
-| 1–2 weeks | Increase frequency (every 2–3 days), focus on weak areas |
-| < 1 week | Daily quizzes, flashcard drills, last-minute summaries |
-
-**Example**: If "Database Exam" is in 5 days → system sends daily notifications:
-> 👉 "Practice 10 MCQs on Normalization today!"
-
-### 5. **Interactive Quiz Engine**
-- Select answers (A/B/C/D)
-- Instant feedback with explanations
-- Score tracking and weak topic detection
-- Results feed into performance prediction system
-
-### 6. **Multi-Agent Integration**
-
-| Output | Destination | Use Case |
-|--------|------------|----------|
-| User quiz scores | Performance Predictor | Detect weak areas |
-| Generated content | Spacing Agent (SM-2) | Schedule reviews |
-| Topic mastery level | Rescheduler Agent | Adjust plan if behind |
-| Exam date + load | Focus Window Predictor | Optimize timing |
-| VARK profile | Resource Recommender | Send video/audio summaries |
-
-## 🏗️ Technical Architecture
-
-```
 [React Frontend]
      ↓
-[Node.js Backend @8080] ↔ [Python AI Server @4000]
+[Node.js Backend @8080] ↔ [Python Analytics Server @4000]
      ↓
-[T5 Model → Generate MCQs, Summaries, Flashcards]
+[MongoDB → Store Projects, Tasks, Proofs, Activity Logs]
      ↓
-[Store + Plan Based on Exam Dates]
+[Contribution Scoring Engine → ML-ready features]
      ↓
-[Send Reminders → Update Scheduler → Feed Prediction Module]
-```
+[Dashboard → Visualize workload, fairness, and progress]
 
-### Tech Stack
 
-| Component | Technology | Port |
-|-----------|-----------|------|
-| Frontend | React | 3000 |
-| Backend | Node.js + Express | 8080 |
-| AI Server | Python + Flask | 4000 |
-| ML Model | Fine-tuned T5-base | - |
-| File Upload | Multer | - |
-| PDF Parsing | pdf-parse | - |
+⚙️ Tech Stack
+| Component        | Technology        | Port |
+|------------------|------------------|------|
+| Frontend         | React + Material UI | 3000 |
+| Backend          | Node.js + Express | 8080 |
+| Analytics Server | Python + Flask    | 4000 |
+| Database         | MongoDB           | -    |
+| File Upload      | Multer            | -    |
+| Proof Storage    | GridFS / Local    | -    |
 
-### Key Components
 
-| Component | Role |
-|-----------|------|
-| `NotesUpload.jsx` | Handles upload UI and form submission |
-| `routes/notes.js` | Manages file upload and text extraction |
-| `ai/generator.js` | Calls Python AI server for MCQ generation |
-| `ai_server/app.py` | Hosts fine-tuned T5 model locally |
-| `parse_generated_text()` | Cleans output and extracts Q/A/options |
-| In-memory storage | Stores notes, MCQs, user progress |
 
-## 💡 Innovation Highlights
+🔑 Key Components
+| Component            | Role |
+|----------------------|------|
+| ProjectBoard.jsx     | Displays tasks and status transitions |
+| routes/tasks.js      | Manages task creation and updates |
+| routes/proofs.js     | Handles proof uploads and validation |
+| analytics/scoring.py | Calculates contribution scores |
+| dashboard/Insights   | Shows workload, completion rate, last active |
 
-| Feature | Why It's Innovative |
-|---------|-------------------|
-| Fine-tuned T5 on custom dataset | Not a prompt hack — real ML training |
-| No repeated questions | Used prompt variation + deduplication |
-| Exam-aware scheduling | First local system linking AI-generated content to deadlines |
-| Closed-loop feedback | Quiz results → prediction → rescheduling |
-| Fully offline-capable | Runs without internet after setup |
 
-> Unlike Google Gemini or ChatGPT wrappers, this is a domain-specific AI pipeline tailored for Sri Lankan university students.
 
-## 🛠️ Installation & Setup
+💡 Innovation Highlights
+| Feature | Why It’s Innovative |
+|---------|----------------------|
+| Strict status transitions | Prevents free‑riding and enforces accountability |
+| Proof cadence tracking | Ensures regular activity, not just last‑minute work |
+| Fair scoring model | Normalizes by project complexity and type |
+| Supervisor dashboard | Provides transparent evaluation metrics |
+| ML‑ready data models | Future‑proof for predictive analytics |
 
-### Prerequisites
-- Node.js (v14+)
-- Python (v3.8+)
-- npm or yarn
-
-### Backend Setup
-```bash
-cd backend
-npm install
-npm start # Runs on port 8080
-```
-
-### AI Server Setup
-```bash
-cd ai_server
-pip install -r requirements.txt
-python app.py # Runs on port 4000
-```
-
-### Frontend Setup
-```bash
-cd frontend
-npm install
-npm start # Runs on port 3000
-```
-
-## 🐛 Challenges Overcome
-
-| Issue | Solution |
-|-------|----------|
-| Options broken across lines | Added `re.sub(r'\s+', ' ', text)` |
-| Only one unique MCQ | Used chunking + sampling + diversity settings |
-| 500 errors during upload | Added logs, fixed fs, re, CORS issues |
-| Port conflicts | Aligned with team: backend on 8080, AI on 4000 |
-| Model repeats same answer | Added deduplication logic |
-
-## 🔮 Future Enhancements
-
-- [ ] **OCR Support**: Use Tesseract.js to extract text from scanned PDFs
-- [ ] **Auto-Summarization**: Add BART-based summarizer for one-page notes
-- [ ] **Flashcard Export**: Export to Anki or Quizlet
-- [ ] **Email Reminders**: Send scheduled practice links before exams
-- [ ] **Progress Dashboard**: Show mastery over time per subject
-
-## 📄 License
-
-This project is part of the HelpMate academic system.
-
-## 👥 Contributors
-
-Built for Sri Lankan university students to revolutionize exam preparation through intelligent, adaptive learning.
-
----
-
-**More than convenience, it offers confidence**: knowing exactly what to study, when to study it, and how well you're progressing.
