@@ -63,25 +63,14 @@ The Smart Academic Group Work Management System solves these issues by:
 
 
 ⚙️ Tech Stack
-| Component        | Technology        | Port |
-|------------------|------------------|------|
-| Frontend         | React + Material UI | 3000 |
-| Backend          | Node.js + Express | 8080 |
-| Analytics Server | Python + Flask    | 4000 |
-| Database         | MongoDB           | -    |
-| File Upload      | Multer            | -    |
-| Proof Storage    | GridFS / Local    | -    |
-
-
-
-🔑 Key Components
-| Component            | Role |
-|----------------------|------|
-| ProjectBoard.jsx     | Displays tasks and status transitions |
-| routes/tasks.js      | Manages task creation and updates |
-| routes/proofs.js     | Handles proof uploads and validation |
-| analytics/scoring.py | Calculates contribution scores |
-| dashboard/Insights   | Shows workload, completion rate, last active |
+| Component        | Technology        |
+|------------------|------------------ |
+| Frontend         | React             |
+| Backend          | Node.js + Express | 
+| Analytics Server | Python            | 
+| Database         | MongoDB           | 
+| File Upload      | Multer            | 
+| Proof Storage    | GridFS / Local    | 
 
 
 
@@ -92,5 +81,4 @@ The Smart Academic Group Work Management System solves these issues by:
 | Proof cadence tracking | Ensures regular activity, not just last‑minute work |
 | Fair scoring model | Normalizes by project complexity and type |
 | Supervisor dashboard | Provides transparent evaluation metrics |
-| ML‑ready data models | Future‑proof for predictive analytics |
 
