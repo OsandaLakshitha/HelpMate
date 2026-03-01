@@ -52,6 +52,9 @@ import ProjectView from "./pages/Bpages/Bproject/Bprojectview";
 import Dashboard from "./pages/Bpages/Bdashboard/Bdashboard";
 import ProjectTaskBoard from "./pages/Bpages/Btasks/Bprojecttaskboard";
 import InsightPage from "./pages/Bpages/Binsight/Binsight";
+import Bonboarding      from './pages/Bpages/Bonboarding';
+import OnboardingGuard  from './components/Bcomponents/OnboardingGuard';
+import BgenerateTask from './pages/Bpages/Btasks/BgenerateTask';
 
 // 404 Page
 import NotFound from "./pages/NotFound";
@@ -114,7 +117,9 @@ function App() {
             <Route path="/user/notes/list" element={<MyNotes />} />
             <Route path="notes/:id" element={<NoteDetail />} />
             <Route path="createproject" element={<CreateProject />} />
-                        <Route path="projects" element={<Bprojectlist />} />
+                       <Route path="/user/projects" element={
+  <OnboardingGuard><Bprojectlist /></OnboardingGuard>
+} />
                         <Route path="taskboard" element={<TaskBoard />} />
                         <Route path="addtask" element={<CreateTask />} />                        
                         <Route path="task/:id" element={<TaskDetails />} />
@@ -122,6 +127,8 @@ function App() {
                         <Route path="projects/:projectId/tasks" element={<ProjectTaskBoard />} />
                         <Route path="workspace" element={<Dashboard />} /> 
                         <Route path="insights" element={<InsightPage />}/>
+                        <Route path="/user/onboarding" element={<Bonboarding />} />
+                        <Route path="generate-tasks/:id" element={<BgenerateTask />} />
           </Route>
 
           {/* 404 Route */}

@@ -7,22 +7,24 @@ const path = require("path");
 
 dotenv.config();
 
-const projectRoutes = require("./routes/Broutes/projectRoutes").default;
-const taskRoutes = require("./routes/Broutes/taskRoutes").default;
-const memberRoutes = require("./routes/Broutes/memberRoutes").default; // if you created this
-const githubRoutes = require("./routes/Broutes/githubRoutes").default; // if you created this
-const dashboardRoutes = require("./routes/Broutes/dashboardRoutes").default;
-const insightRoutes = require("./routes/Broutes/insightRoutes").default;
+const projectRoutes     = require("./routes/Broutes/projectRoutes").default;
+const taskRoutes        = require("./routes/Broutes/taskRoutes").default;
+const memberRoutes      = require("./routes/Broutes/memberRoutes").default;
+const githubRoutes      = require("./routes/Broutes/githubRoutes").default;
+const dashboardRoutes   = require("./routes/Broutes/dashboardRoutes").default;
+const insightRoutes     = require("./routes/Broutes/insightRoutes").default;
 const interactionRoutes = require("./routes/Broutes/interactionRoutes").default;
-
+// ── NEW ───────────────────────────────────────────────────────────────────────
+const profileRoutes     = require("./routes/Broutes/Profileroutes").default;
+const predictionRoutes  = require("./routes/Broutes/Predictionroutes").default;
 
 const app = express();
 
 // Middleware
 app.use(
   cors({
-    origin: "http://localhost:3000", // ← Not '*'
-    credentials: true, // ← Needed for cookies
+    origin: "http://localhost:3000",
+    credentials: true,
   })
 );
 app.use(express.json());
@@ -34,30 +36,37 @@ mongoose
     useNewUrlParser: true,
     useUnifiedTopology: true,
   })
-  .then(() => console.log("✅ MongoDB connected"))
+  .then(() => {
+    console.log("✅ MongoDB connected");
+    // ── NEW: start nightly overdue task checker ───────────────────────────
+    const { startScheduler } = require("./services/Bservices/Scheduler.js");
+    startScheduler();
+    //console.log(process.env.CLAUDE_API_KEY);
+    //console.log("Claude Key:", process.env.CLAUDE_API_KEY);
+  })
   .catch((err) => console.error("❌ MongoDB connection error:", err));
 
 // Routes
-app.use("/api/auth", require("./routes/auth"));
-app.use("/api/admin", require("./routes/admin"));
-app.use("/api/pricing", require("./routes/pricing"));
-app.use("/api", require("./routes/recommendations"));
-app.use("/api/notes", notesRouter);
+app.use("/api/auth",          require("./routes/auth"));
+app.use("/api/admin",         require("./routes/admin"));
+app.use("/api/pricing",       require("./routes/pricing"));
+app.use("/api",               require("./routes/recommendations"));
+app.use("/api/notes",         notesRouter);
 app.use("/api/peer-matching", require("./routes/peerMatching"));
-app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
+app.use("/uploads",           express.static(path.join(__dirname, "../uploads")));
+// ── NEW: serve PDF uploads ────────────────────────────────────────────────────
+app.use("/uploads/pdfs",      express.static(path.join(__dirname, "../uploads/pdfs")));
 
-app.use('/api/projects', githubRoutes);  // This handles /verify-repo and /:id/commits
-app.use('/api/projects', projectRoutes); // This handles /, /:id, etc.
-app.use('/api/members', memberRoutes);
-app.use("/api/tasks", taskRoutes);
-app.use("/api/user", dashboardRoutes);
-app.use('/api/insights', insightRoutes);
-app.use('/api/interactions', interactionRoutes);
-
-//app.use("/api/user", require("./routes/Broutes/dashboardRoutes"));
-
-//app.use("/api/projects", memberRoutes);
-//app.use("/api/project-members", MemberRoutes);
+app.use('/api/projects',      githubRoutes);
+app.use('/api/projects',      projectRoutes);
+app.use('/api/members',       memberRoutes);
+app.use("/api/tasks",         taskRoutes);
+app.use("/api/user",          dashboardRoutes);
+app.use('/api/insights',      insightRoutes);
+app.use('/api/interactions',  interactionRoutes);
+// ── NEW ───────────────────────────────────────────────────────────────────────
+app.use('/api/profile',       profileRoutes);
+app.use('/api/prediction',    predictionRoutes);
 
 // Health check
 app.get("/api/health", (req, res) => {

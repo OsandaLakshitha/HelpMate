@@ -1,10 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  Container, Typography, TextField, Button, Box, 
-  MenuItem, FormControl, InputLabel, Select, 
-  Paper, Divider, Chip, CircularProgress, Alert, 
-  IconButton, Tooltip, Grid, FormHelperText
+import axios from 'axios';
+import { API_URL } from '../../../config/api';
+import { useAuth } from '../../../context/AuthContext';
+import {
+  Container, Typography, TextField, Button, Box,
+  MenuItem, FormControl, InputLabel, Select,
+  Paper, Divider, Chip, CircularProgress, Alert,
+  IconButton, Grid, Avatar, LinearProgress
 } from '@mui/material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
@@ -12,624 +15,593 @@ import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 import VerifiedIcon from '@mui/icons-material/Verified';
-import axios from 'axios';
-import { API_URL } from '../../../config/api';
-import { useAuth } from '../../../context/AuthContext';
+import UploadFileIcon from '@mui/icons-material/UploadFile';
+import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
+import CloseIcon from '@mui/icons-material/Close';
+import GroupsIcon from '@mui/icons-material/Groups';
+import AssignmentIcon from '@mui/icons-material/Assignment';
+import PersonIcon from '@mui/icons-material/Person';
 
+// ── Colour tokens ─────────────────────────────────────────────────────────────
+const C = {
+  bg:        '#F7F8FC',
+  surface:   '#FFFFFF',
+  border:    '#E4E7EF',
+  primary:   '#4361EE',
+  primarySoft:'#EEF1FD',
+  success:   '#2DC76D',
+  successSoft:'#EDFBF3',
+  error:     '#F03E3E',
+  errorSoft: '#FFF0F0',
+  text:      '#1A1D2E',
+  muted:     '#6B7280',
+  accent:    '#F4A261',
+};
+
+// ── Section card wrapper ──────────────────────────────────────────────────────
+const Section = ({ icon, title, subtitle, children }) => (
+  <Paper
+    elevation={0}
+    sx={{
+      border: `1px solid ${C.border}`,
+      borderRadius: 3,
+      overflow: 'hidden',
+      mb: 3,
+    }}
+  >
+    <Box sx={{ px: 3, py: 2, bgcolor: C.bg, borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', gap: 1.5 }}>
+      <Box sx={{ color: C.primary }}>{icon}</Box>
+      <Box>
+        <Typography fontWeight={700} fontSize={15} color={C.text}>{title}</Typography>
+        {subtitle && <Typography fontSize={12} color={C.muted}>{subtitle}</Typography>}
+      </Box>
+    </Box>
+    <Box sx={{ p: 3 }}>{children}</Box>
+  </Paper>
+);
+
+// ── Avatar initials ───────────────────────────────────────────────────────────
+const getInitials = (name = '') =>
+  name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2) || '?';
+
+const avatarColor = (str = '') => {
+  const colors = ['#4361EE','#F4A261','#2DC76D','#E63946','#9B5DE5','#00B4D8'];
+  let h = 0;
+  for (let i = 0; i < str.length; i++) h = str.charCodeAt(i) + ((h << 5) - h);
+  return colors[Math.abs(h) % colors.length];
+};
+
+// ── Main Component ────────────────────────────────────────────────────────────
 const CreateProject = () => {
-  const navigate = useNavigate();
-  const { user, token } = useAuth(); // Get user and token from AuthContext
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
-  const [githubVerified, setGithubVerified] = useState(false);
-  const [verifyingGithub, setVerifyingGithub] = useState(false);
-  const [verificationMessage, setVerificationMessage] = useState('');
-  
-  
-  // Form state
+  const navigate  = useNavigate();
+  const { user, token } = useAuth();
+
+  // ── State ──────────────────────────────────────────────────────────────────
+  const [loading,  setLoading]  = useState(false);
+  const [error,    setError]    = useState('');
+  const [success,  setSuccess]  = useState('');
+  const [errors,   setErrors]   = useState({});
+
   const [formData, setFormData] = useState({
-    title: '',
+    title:       '',
     description: '',
-    complexity: 'Low',
-    projectType: 'Coding',
-    dueDate: null,
-    githubRepoUrl: '',
-    supervisorEmail: '',
-    members: []
+    approach:    '',
+    complexity:  'Low',
+    projectType: 'Documentation',
+    dueDate:     null,
+    members:     [],
   });
 
   const [creatorComponent, setCreatorComponent] = useState('');
+  const [memberForm, setMemberForm] = useState({ email: '', componentName: '' });
+  const [memberLoading, setMemberLoading] = useState(false);
+  const [memberError,   setMemberError]   = useState('');
 
-  const [memberForm, setMemberForm] = useState({
-    email: '',
-    componentName: ''
-  });
+  const [pdfFile, setPdfFile]   = useState(null);
 
-  const [supervisor, setSupervisor] = useState({
-    email: '',
-    verified: false,
-    loading: false,
-    user: null
-  });
+  // ── Validation ─────────────────────────────────────────────────────────────
+  const validate = () => {
+    const e = {};
+    if (!formData.title.trim())          e.title          = 'Project title is required';
+    if (formData.title.trim().length > 100) e.title       = 'Title must be under 100 characters';
+    if (!formData.dueDate)               e.dueDate        = 'Due date is required';
+    if (formData.dueDate && new Date(formData.dueDate) <= new Date()) e.dueDate = 'Due date must be in the future';
+    if (!creatorComponent.trim())        e.creatorComponent = 'Your component/role is required';
+    if (!formData.approach.trim())       e.approach       = 'Please describe your group\'s plan';
+    if (!pdfFile)                        e.pdf            = 'Assignment PDF is required';
+    if (formData.members.length === 0)   e.members        = 'Add at least one other team member';
+    //if (formData.members.length > 3)     e.members        = 'Maximum 3 additional members (4 total including you)';
+    setErrors(e);
+    return Object.keys(e).length === 0;
+  };
 
-  // Handle input changes
+  // ── Handlers ───────────────────────────────────────────────────────────────
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    setFormData(prev => ({ ...prev, [name]: value }));
+    if (errors[name]) setErrors(prev => ({ ...prev, [name]: '' }));
   };
 
-  // Handle member input changes
-  const handleMemberChange = (e) => {
-    const { name, value } = e.target;
-    setMemberForm(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
-
-  // Handle supervisor email change
-  const handleSupervisorChange = (e) => {
-    const email = e.target.value;
-    setSupervisor(prev => ({
-      ...prev,
-      email,
-      verified: false,
-      user: null
-    }));
-    setFormData(prev => ({
-      ...prev,
-      supervisorEmail: email
-    }));
-  };
-
-  // Verify supervisor email
-  const verifySupervisor = async () => {
-    if (!supervisor.email) return;
-    
-    setSupervisor(prev => ({ ...prev, loading: true }));
-    try {
-      const response = await axios.get(
-        `${API_URL}/api/members/verify-account?email=${encodeURIComponent(supervisor.email)}`,
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        }
-      );
-      
-      setSupervisor(prev => ({
-        ...prev,
-        verified: response.data.exists,
-        user: response.data.user,
-        loading: false
-      }));
-    } catch (err) {
-      console.error('Error verifying supervisor:', err);
-      setSupervisor(prev => ({ ...prev, loading: false }));
-      setError('Failed to verify supervisor email');
+  const handlePdf = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (file.type !== 'application/pdf') {
+      setErrors(prev => ({ ...prev, pdf: 'Only PDF files are allowed' }));
+      return;
     }
-  };
-
-  // Verify GitHub repository
-  const verifyGithubRepo = async () => {
-    if (!formData.githubRepoUrl) return;
-
-    setVerifyingGithub(true);
-    setVerificationMessage('Verifying repository...');
-
-    try {
-      const response = await axios.get(
-        `${API_URL}/api/projects/verify-repo?repoUrl=${encodeURIComponent(formData.githubRepoUrl)}`,
-        { 
-          headers: { 
-            'Authorization': `Bearer ${token}` 
-          } 
-        }
-      );
-
-      setGithubVerified(response.data.valid);
-      setVerificationMessage(response.data.message);
-    } catch (err) {
-      console.error('Error verifying GitHub repo:', err);
-      setGithubVerified(false);
-      setVerificationMessage(err.response?.data?.message || 'Failed to verify repository');
-    } finally {
-      setVerifyingGithub(false);
+    if (file.size > 10 * 1024 * 1024) {
+      setErrors(prev => ({ ...prev, pdf: 'PDF must be under 10MB' }));
+      return;
     }
+    setPdfFile(file);
+    setErrors(prev => ({ ...prev, pdf: '' }));
   };
 
-  // Add member to project
   const addMember = async () => {
-    if (!memberForm.email) {
-      setError('Email is required');
+    setMemberError('');
+    if (!memberForm.email.trim()) { setMemberError('Email is required'); return; }
+
+    // Block creator adding themselves
+    if (memberForm.email.toLowerCase() === user?.email?.toLowerCase()) {
+      setMemberError('You are already added as the project creator');
       return;
     }
 
-    // Check if member already exists
-    if (formData.members.some(m => m.email === memberForm.email)) {
-      setError('This member is already added');
+    // Block duplicate
+    if (formData.members.some(m => m.email.toLowerCase() === memberForm.email.toLowerCase())) {
+      setMemberError('This member is already added');
       return;
     }
 
-    // Verify member email
+    // Max 3 additional members
+    //if (formData.members.length >= 3) {
+    //  setMemberError('Maximum 3 additional members allowed');
+    //  return;
+   // }
+
+    setMemberLoading(true);
     try {
-      const response = await axios.get(
+      const res = await axios.get(
         `${API_URL}/api/members/verify-account?email=${encodeURIComponent(memberForm.email)}`,
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        }
+        { headers: { Authorization: `Bearer ${token}` } }
       );
-      
-      if (!response.data.exists) {
-        setError('No account found with this email');
-        return;
-      }
 
-      const newMember = {
-        email: memberForm.email,
-        name: response.data.user.firstName && response.data.user.lastName 
-          ? `${response.data.user.firstName} ${response.data.user.lastName}`
-          : response.data.user.email,
-        componentName: memberForm.componentName || '',
-        userId: response.data.user.id,
-        verified: true
-      };
+      if (!res.data.exists) { setMemberError('No account found with this email'); return; }
 
+      const u = res.data.user;
       setFormData(prev => ({
         ...prev,
-        members: [...prev.members, newMember]
+        members: [...prev.members, {
+          email:         memberForm.email,
+          name:          u.name || memberForm.email,
+          componentName: memberForm.componentName || '',
+          userId:        u.id,
+          verified:      true,
+        }],
       }));
-
-      // Reset member form
-      setMemberForm({
-        email: '',
-        componentName: ''
-      });
-      setError('');
+      setMemberForm({ email: '', componentName: '' });
+      setErrors(prev => ({ ...prev, members: '' }));
     } catch (err) {
-      console.error('Error verifying member:', err);
-      setError(err.response?.data?.message || 'Failed to verify member email');
+      setMemberError(err.response?.data?.message || 'Failed to verify email');
+    } finally {
+      setMemberLoading(false);
     }
   };
 
-  // Remove member from project
-  const removeMember = (email) => {
-    setFormData(prev => ({
-      ...prev,
-      members: prev.members.filter(m => m.email !== email)
-    }));
-  };
+  const removeMember = (email) =>
+    setFormData(prev => ({ ...prev, members: prev.members.filter(m => m.email !== email) }));
 
-  // Handle form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
     setError('');
     setSuccess('');
+    if (!validate()) return;
 
-    if (!user) {
-      setError('You must be logged in to create a project');
-      setLoading(false);
-      return;
-    }
-
-    if (!token) {
-      setError('Authentication token not found. Please login again.');
-      setLoading(false);
-      return;
-    }
-
-    if (!creatorComponent.trim()) {
-      setError('Please specify your component/role in the project');
-      setLoading(false);
-      return;
-    }
-
+    setLoading(true);
     try {
-      // Prepare members array with creator first
       const allMembers = [
         {
-          userId: user._id || user.id,
-          email: user.email,
-          name: user.firstName && user.lastName 
-            ? `${user.firstName} ${user.lastName}`
-            : user.email,
+          userId:        user._id || user.id,
+          email:         user.email,
+          name:          `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email,
           componentName: creatorComponent,
-          verified: true
+          verified:      true,
         },
-        ...formData.members
+        ...formData.members,
       ];
 
-      const projectData = {
-        title: formData.title,
-        description: formData.description,
-        complexity: formData.complexity,
-        projectType: formData.projectType,
-        dueDate: formData.dueDate,
-        githubRepoUrl: formData.githubRepoUrl,
-        supervisorEmail: formData.supervisorEmail,
-        githubVerified,
-        creatorId: user._id || user.id,
-        memberIds: allMembers.map(m => m.userId),
-        members: allMembers
-      };
+      // Use FormData so PDF file goes through multipart
+      const fd = new FormData();
+      fd.append('title',       formData.title);
+      fd.append('description', formData.description);
+      fd.append('approach',    formData.approach);
+      fd.append('complexity',  formData.complexity);
+      fd.append('projectType', formData.projectType);
+      fd.append('dueDate',     formData.dueDate.toISOString());
+      fd.append('members',     JSON.stringify(allMembers));
+      fd.append('memberIds',   JSON.stringify(allMembers.map(m => m.userId)));
+      if (pdfFile) fd.append('assignmentPdf', pdfFile);
 
-      console.log('Creating project with data:', projectData);
+      const res = await axios.post(`${API_URL}/api/projects`, fd, {
+        headers: { Authorization: `Bearer ${token}` },
+        // Do NOT set Content-Type — browser sets it with boundary automatically
+      });
 
-      const response = await axios.post(
-        `${API_URL}/api/projects`, 
-        projectData, 
-        {
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          }
-        }
-      );
-
-      if (response.data.success) {
-        setSuccess('Project created successfully!');
-        setTimeout(() => {
-          navigate(`/project/${response.data.project._id}`);
-        }, 1500);
+      if (res.data.success) {
+        setSuccess('Project created successfully! Redirecting...');
+        setTimeout(() => navigate(`/project/${res.data.project._id}`), 1500);
       } else {
-        setError(response.data.message || 'Failed to create project');
+        setError(res.data.message || 'Failed to create project');
       }
     } catch (err) {
-      console.error('Error creating project:', err);
       setError(err.response?.data?.message || 'Failed to create project');
+    } finally {
       setLoading(false);
     }
   };
 
+  // ── Render ─────────────────────────────────────────────────────────────────
   return (
-    <Container maxWidth="md" sx={{ mt: 4, mb: 4 }}>
-      <Paper elevation={3} sx={{ p: 4 }}>
-        <Typography variant="h4" component="h1" gutterBottom>
-          Create New Project
-        </Typography>
-        <Divider sx={{ mb: 4 }} />
-        
-        {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
-        {success && <Alert severity="success" sx={{ mb: 3 }}>{success}</Alert>}
+    <Box sx={{ bgcolor: C.bg, minHeight: '100vh', py: 5 }}>
+      <Container maxWidth="md">
 
-        <Box component="form" onSubmit={handleSubmit}>
-          {/* Project Title */}
-          <TextField
-            fullWidth
-            label="Project Title"
-            name="title"
-            value={formData.title}
-            onChange={handleChange}
-            required
-            margin="normal"
-            variant="outlined"
-          />
+        {/* ── Header ── */}
+        <Box sx={{ mb: 4 }}>
+          <Typography
+            variant="h4"
+            fontWeight={800}
+            color={C.text}
+            sx={{ letterSpacing: '-0.5px' }}
+          >
+            Create New Project
+          </Typography>
+          <Typography color={C.muted} mt={0.5}>
+            Fill in the details below to set up your group assignment project.
+          </Typography>
+        </Box>
 
-          {/* Project Description */}
-          <TextField
-            fullWidth
-            label="Description"
-            name="description"
-            value={formData.description}
-            onChange={handleChange}
-            multiline
-            rows={4}
-            margin="normal"
-            variant="outlined"
-          />
+        {/* ── Alerts ── */}
+        {error   && <Alert severity="error"   sx={{ mb: 3, borderRadius: 2 }} onClose={() => setError('')}>{error}</Alert>}
+        {success && <Alert severity="success" sx={{ mb: 3, borderRadius: 2 }}>{success}</Alert>}
 
-          <Grid container spacing={2} sx={{ mt: 1, mb: 2 }}>
-            {/* Project Type */}
-            <Grid item xs={12} sm={6}>
-              <FormControl fullWidth margin="normal" required>
-                <InputLabel>Project Type</InputLabel>
-                <Select
-                  name="projectType"
-                  value={formData.projectType}
-                  onChange={handleChange}
-                  label="Project Type"
-                >
-                  <MenuItem value="Coding">Coding</MenuItem>
-                  <MenuItem value="Documentation">Documentation</MenuItem>
-                  <MenuItem value="Both">Both</MenuItem>
-                  <MenuItem value="Other">Other</MenuItem>
-                </Select>
-              </FormControl>
+        <Box component="form" onSubmit={handleSubmit} noValidate>
+
+          {/* ── Section 1: Project Details ── */}
+          <Section icon={<AssignmentIcon />} title="Project Details" subtitle="Basic information about your assignment">
+
+            <TextField
+              fullWidth required
+              label="Project Title"
+              name="title"
+              value={formData.title}
+              onChange={handleChange}
+              error={!!errors.title}
+              helperText={errors.title || `${formData.title.length}/100`}
+              inputProps={{ maxLength: 100 }}
+              sx={{ mb: 2.5 }}
+            />
+
+            <TextField
+              fullWidth multiline rows={3}
+              label="Description (Optional)"
+              name="description"
+              value={formData.description}
+              onChange={handleChange}
+              placeholder="Brief overview of the project..."
+              sx={{ mb: 2.5 }}
+            />
+
+            <TextField
+              fullWidth required multiline rows={3}
+              label="Your Group's Approach"
+              name="approach"
+              value={formData.approach}
+              onChange={handleChange}
+              error={!!errors.approach}
+              helperText={errors.approach || "What does your group plan to build or research? This helps generate better tasks."}
+              placeholder="e.g., We plan to build a web application that tracks student attendance using facial recognition..."
+              sx={{ mb: 2.5 }}
+            />
+
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={4}>
+                <FormControl fullWidth required>
+                  <InputLabel>Project Type</InputLabel>
+                  <Select name="projectType" value={formData.projectType} onChange={handleChange} label="Project Type">
+                    <MenuItem value="Coding">Coding</MenuItem>
+                    <MenuItem value="Documentation">Documentation</MenuItem>
+                    <MenuItem value="Both">Both</MenuItem>
+                    <MenuItem value="Other">Other</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
+
+              <Grid item xs={12} sm={4}>
+                <FormControl fullWidth required>
+                  <InputLabel>Complexity</InputLabel>
+                  <Select name="complexity" value={formData.complexity} onChange={handleChange} label="Complexity">
+                    <MenuItem value="Low">🟢 Low</MenuItem>
+                    <MenuItem value="Medium">🟡 Medium</MenuItem>
+                    <MenuItem value="High">🔴 High</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
+
+              <Grid item xs={12} sm={4}>
+                <LocalizationProvider dateAdapter={AdapterDateFns}>
+                  <DatePicker
+                    label="Due Date *"
+                    value={formData.dueDate}
+                    minDate={new Date()}
+                    onChange={(date) => {
+                      setFormData(prev => ({ ...prev, dueDate: date }));
+                      setErrors(prev => ({ ...prev, dueDate: '' }));
+                    }}
+                    slotProps={{
+                      textField: {
+                        fullWidth: true,
+                        error: !!errors.dueDate,
+                        helperText: errors.dueDate,
+                      }
+                    }}
+                  />
+                </LocalizationProvider>
+              </Grid>
             </Grid>
+          </Section>
 
-            {/* Complexity */}
-            <Grid item xs={12} sm={6}>
-              <FormControl fullWidth margin="normal" required>
-                <InputLabel>Complexity</InputLabel>
-                <Select
-                  name="complexity"
-                  value={formData.complexity}
-                  onChange={handleChange}
-                  label="Complexity"
-                >
-                  <MenuItem value="Low">Low</MenuItem>
-                  <MenuItem value="Medium">Medium</MenuItem>
-                  <MenuItem value="High">High</MenuItem>
-                </Select>
-              </FormControl>
-            </Grid>
-          </Grid>
+          {/* ── Section 2: Assignment PDF ── */}
+          <Section icon={<PictureAsPdfIcon />} title="Assignment Brief" subtitle="Upload your assignment PDF — used to generate personalised tasks">
 
-          <Grid container spacing={2} sx={{ mb: 2 }}>
-            {/* Due Date */}
-            <Grid item xs={12} sm={6}>
-              <LocalizationProvider dateAdapter={AdapterDateFns}>
-                <DatePicker
-                  label="Due Date"
-                  value={formData.dueDate}
-                  onChange={(date) => setFormData(prev => ({ ...prev, dueDate: date }))}
-                  renderInput={(params) => (
-                    <TextField 
-                      {...params} 
-                      fullWidth 
-                      margin="normal" 
-                      required 
-                    />
-                  )}
+            {!pdfFile ? (
+              <Box
+                component="label"
+                htmlFor="pdf-upload"
+                sx={{
+                  display:       'flex',
+                  flexDirection: 'column',
+                  alignItems:    'center',
+                  justifyContent:'center',
+                  gap:           1,
+                  p:             4,
+                  border:        `2px dashed ${errors.pdf ? C.error : C.border}`,
+                  borderRadius:  3,
+                  bgcolor:       errors.pdf ? C.errorSoft : C.bg,
+                  cursor:        'pointer',
+                  transition:    'all 0.2s',
+                  '&:hover':     { borderColor: C.primary, bgcolor: C.primarySoft },
+                }}
+              >
+                <UploadFileIcon sx={{ fontSize: 40, color: errors.pdf ? C.error : C.muted }} />
+                <Typography fontWeight={600} color={errors.pdf ? C.error : C.text}>
+                  Click to upload PDF
+                </Typography>
+                <Typography fontSize={12} color={C.muted}>
+                  Maximum file size: 10MB
+                </Typography>
+                <input
+                  id="pdf-upload"
+                  type="file"
+                  accept=".pdf,application/pdf"
+                  style={{ display: 'none' }}
+                  onChange={handlePdf}
                 />
-              </LocalizationProvider>
-            </Grid>
-          </Grid>
-
-          {/* GitHub Repository */}
-          <Box sx={{ mb: 3 }}>
-            <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
-              <TextField
-                fullWidth
-                label="GitHub Repository URL"
-                name="githubRepoUrl"
-                value={formData.githubRepoUrl}
-                onChange={handleChange}
-                margin="normal"
-                variant="outlined"
-                placeholder="https://github.com/username/repository"
-                helperText="Enter the full URL of your GitHub repository"
-              />
-              <Button
-                variant="outlined"
-                onClick={verifyGithubRepo}
-                disabled={!formData.githubRepoUrl || verifyingGithub}
-                sx={{ mt: 2, minWidth: '120px' }}
+              </Box>
+            ) : (
+              <Box
+                sx={{
+                  display:     'flex',
+                  alignItems:  'center',
+                  gap:         2,
+                  p:           2,
+                  border:      `1px solid ${C.success}`,
+                  borderRadius: 2,
+                  bgcolor:     C.successSoft,
+                }}
               >
-                {verifyingGithub ? <CircularProgress size={24} /> : 'Verify'}
-              </Button>
-            </Box>
-            {verificationMessage && (
-              <Box sx={{ display: 'flex', alignItems: 'center', mt: 1, color: githubVerified ? 'success.main' : 'error.main' }}>
-                {githubVerified && <VerifiedIcon color="success" sx={{ mr: 0.5 }} />}
-                <Typography variant="body2">
-                  {verificationMessage}
-                </Typography>
+                <PictureAsPdfIcon sx={{ color: C.error, fontSize: 36 }} />
+                <Box sx={{ flex: 1 }}>
+                  <Typography fontWeight={600} fontSize={14} color={C.text}>
+                    {pdfFile.name}
+                  </Typography>
+                  <Typography fontSize={12} color={C.muted}>
+                    {(pdfFile.size / 1024).toFixed(0)} KB
+                  </Typography>
+                </Box>
+                <Chip label="Ready" color="success" size="small" icon={<VerifiedIcon />} />
+                <IconButton size="small" onClick={() => setPdfFile(null)}>
+                  <CloseIcon fontSize="small" />
+                </IconButton>
               </Box>
             )}
-          </Box>
 
-          {/* Supervisor Email */}
-          <Box sx={{ mb: 3 }}>
-            <Typography variant="subtitle1" gutterBottom>
-              Supervisor (Optional)
-            </Typography>
-            <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
-              <TextField
-                fullWidth
-                label="Supervisor Email"
-                value={supervisor.email}
-                onChange={handleSupervisorChange}
-                margin="normal"
-                variant="outlined"
-                placeholder="supervisor@example.com"
-              />
-              <Button
-                variant="outlined"
-                onClick={verifySupervisor}
-                disabled={!supervisor.email || supervisor.loading}
-                sx={{ mt: 2, minWidth: '120px' }}
-              >
-                {supervisor.loading ? <CircularProgress size={24} /> : 'Verify'}
-              </Button>
-            </Box>
-            {supervisor.verified && (
-              <Box sx={{ display: 'flex', alignItems: 'center', mt: 1, color: 'success.main' }}>
-                <VerifiedIcon color="success" sx={{ mr: 0.5 }} />
-                <Typography variant="body2">
-                  Verified: {supervisor.user?.name || 'Supervisor'}
-                </Typography>
-              </Box>
+            {errors.pdf && (
+              <Typography fontSize={12} color={C.error} mt={1}>{errors.pdf}</Typography>
             )}
-          </Box>
+          </Section>
 
-          {/* Team Members */}
-          <Box sx={{ mb: 3 }}>
-            <Typography variant="subtitle1" gutterBottom>
-              Team Members
-            </Typography>
+          {/* ── Section 3: Team Members ── */}
+          <Section
+            icon={<GroupsIcon />}
+            title="Team Members"
+            subtitle={`${formData.members.length + 1} members — you + teammates`}
+          >
 
-            {/* Creator's Component - Always shown first */}
-            <Paper
-              elevation={1}
+            {/* Creator card — always first, cannot be removed */}
+            <Box
               sx={{
-                p: 2,
-                mb: 2,
-                border: '2px solid',
-                borderColor: 'primary.main',
-                bgcolor: 'primary.50',
+                display:       'flex',
+                alignItems:    'center',
+                gap:           2,
+                p:             2,
+                mb:            2,
+                border:        `2px solid ${C.primary}`,
+                borderRadius:  2,
+                bgcolor:       C.primarySoft,
               }}
             >
-              <Typography variant="subtitle2" color="primary" gutterBottom>
-                Your Role (Project Creator)
-              </Typography>
-              <Grid container spacing={2} alignItems="center">
-                <Grid item xs={12} sm={5}>
-                  <TextField
-                    fullWidth
-                    disabled
-                    value={user?.email || ''}
-                    label="Email"
-                    variant="outlined"
-                    size="small"
-                  />
-                </Grid>
-                <Grid item xs={12} sm={5}>
-                  <TextField
-                    fullWidth
-                    required
-                    label="Your Component/Role"
-                    value={creatorComponent}
-                    onChange={(e) => setCreatorComponent(e.target.value)}
-                    variant="outlined"
-                    size="small"
-                    placeholder="e.g., Backend Developer"
-                    helperText="Specify your role in this project"
-                  />
-                </Grid>
-                <Grid item xs={12} sm={2}>
-                  <Chip
-                    icon={<VerifiedIcon />}
-                    label="Creator"
-                    color="primary"
-                    size="small"
-                  />
-                </Grid>
-              </Grid>
-            </Paper>
+              <Avatar sx={{ bgcolor: avatarColor(user?.email || ''), width: 40, height: 40, fontSize: 14 }}>
+                {getInitials(`${user?.firstName || ''} ${user?.lastName || ''}`)}
+              </Avatar>
+              <Box sx={{ flex: 1 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Typography fontWeight={700} fontSize={14} color={C.text}>
+                    {user?.firstName} {user?.lastName}
+                  </Typography>
+                  <Chip label="You (Creator)" size="small" color="primary" sx={{ height: 20, fontSize: 11 }} />
+                </Box>
+                <Typography fontSize={12} color={C.muted}>{user?.email}</Typography>
+              </Box>
+              <TextField
+                required
+                size="small"
+                label="Your Component / Role"
+                value={creatorComponent}
+                onChange={(e) => {
+                  setCreatorComponent(e.target.value);
+                  setErrors(prev => ({ ...prev, creatorComponent: '' }));
+                }}
+                error={!!errors.creatorComponent}
+                helperText={errors.creatorComponent}
+                placeholder="e.g. Backend Developer"
+                sx={{ minWidth: 220 }}
+              />
+            </Box>
 
-            {/* Add Other Members */}
-            <Typography variant="subtitle2" gutterBottom sx={{ mt: 3 }}>
-              Add Other Team Members
-            </Typography>
-            
-            <Grid container spacing={2} alignItems="flex-end">
-              <Grid item xs={12} sm={5}>
-                <TextField
-                  fullWidth
-                  label="Email"
-                  name="email"
-                  type="email"
-                  value={memberForm.email}
-                  onChange={handleMemberChange}
-                  margin="normal"
-                  variant="outlined"
+            {/* Added members list */}
+            {formData.members.map((member, i) => (
+              <Box
+                key={i}
+                sx={{
+                  display:      'flex',
+                  alignItems:   'center',
+                  gap:          2,
+                  p:            2,
+                  mb:           1.5,
+                  border:       `1px solid ${C.border}`,
+                  borderRadius: 2,
+                  bgcolor:      C.surface,
+                }}
+              >
+                <Avatar sx={{ bgcolor: avatarColor(member.email), width: 40, height: 40, fontSize: 14 }}>
+                  {getInitials(member.name)}
+                </Avatar>
+                <Box sx={{ flex: 1 }}>
+                  <Typography fontWeight={600} fontSize={14} color={C.text}>{member.name}</Typography>
+                  <Typography fontSize={12} color={C.muted}>{member.email}</Typography>
+                </Box>
+                <Chip
+                  label={member.componentName || 'No role set'}
                   size="small"
-                />
-              </Grid>
-              <Grid item xs={12} sm={5}>
-                <TextField
-                  fullWidth
-                  label="Component/Role"
-                  name="componentName"
-                  value={memberForm.componentName}
-                  onChange={handleMemberChange}
-                  margin="normal"
                   variant="outlined"
-                  size="small"
+                  sx={{ fontSize: 11 }}
                 />
-              </Grid>
-              <Grid item xs={12} sm={2}>
-                <Tooltip title="Add Member">
-                  <IconButton 
-                    color="primary" 
-                    onClick={addMember}
-                    disabled={!memberForm.email}
-                  >
-                    <AddIcon />
-                  </IconButton>
-                </Tooltip>
-              </Grid>
-            </Grid>
+                <Chip icon={<VerifiedIcon />} label="Verified" color="success" size="small" variant="outlined" sx={{ fontSize: 11 }} />
+                <IconButton size="small" color="error" onClick={() => removeMember(member.email)}>
+                  <DeleteIcon fontSize="small" />
+                </IconButton>
+              </Box>
+            ))}
 
-            {/* Member List as Rows */}
-            {formData.members.length > 0 && (
-              <Box sx={{ mt: 3 }}>
-                <Typography variant="subtitle2" gutterBottom>
-                  Added Members ({formData.members.length})
+            {/* Add member form */}
+            {formData.members.length < 3 && (
+              <Box
+                sx={{
+                  mt:           2,
+                  p:            2.5,
+                  border:       `1px dashed ${errors.members ? C.error : C.border}`,
+                  borderRadius: 2,
+                  bgcolor:      C.bg,
+                }}
+              >
+                <Typography fontSize={13} fontWeight={600} color={C.muted} mb={1.5}>
+                  Add Team Member
                 </Typography>
-                {formData.members.map((member, index) => (
-                  <Paper
-                    key={index}
-                    elevation={1}
-                    sx={{
-                      p: 2,
-                      mb: 1,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      border: '1px solid',
-                      borderColor: 'divider',
-                    }}
-                  >
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flex: 1 }}>
-                      <Box sx={{ flex: 1 }}>
-                        <Typography variant="body1" fontWeight="medium">
-                          {member.name}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          {member.email}
-                        </Typography>
-                      </Box>
-                      <Box sx={{ minWidth: 150 }}>
-                        <Typography variant="body2" color="text.secondary">
-                          Component:
-                        </Typography>
-                        <Typography variant="body2">
-                          {member.componentName || 'Not specified'}
-                        </Typography>
-                      </Box>
-                      <Chip
-                        icon={<VerifiedIcon />}
-                        label="Verified"
-                        color="success"
-                        size="small"
-                        variant="outlined"
-                      />
-                    </Box>
-                    <IconButton
-                      color="error"
-                      onClick={() => removeMember(member.email)}
-                      size="small"
+                <Grid container spacing={1.5} alignItems="flex-start">
+                  <Grid item xs={12} sm={5}>
+                    <TextField
+                      fullWidth size="small"
+                      label="Email address"
+                      type="email"
+                      value={memberForm.email}
+                      onChange={(e) => {
+                        setMemberForm(prev => ({ ...prev, email: e.target.value }));
+                        setMemberError('');
+                      }}
+                      placeholder="teammate@example.com"
+                      error={!!memberError}
+                    />
+                  </Grid>
+                  <Grid item xs={12} sm={5}>
+                    <TextField
+                      fullWidth size="small"
+                      label="Component / Role"
+                      value={memberForm.componentName}
+                      onChange={(e) => setMemberForm(prev => ({ ...prev, componentName: e.target.value }))}
+                      placeholder="e.g. Frontend Developer"
+                    />
+                  </Grid>
+                  <Grid item xs={12} sm={2}>
+                    <Button
+                      fullWidth
+                      variant="contained"
+                      onClick={addMember}
+                      disabled={!memberForm.email || memberLoading}
+                      sx={{ height: 40, bgcolor: C.primary, '&:hover': { bgcolor: '#3451d1' } }}
                     >
-                      <DeleteIcon />
-                    </IconButton>
-                  </Paper>
-                ))}
+                      {memberLoading
+                        ? <CircularProgress size={18} sx={{ color: '#fff' }} />
+                        : <AddIcon />
+                      }
+                    </Button>
+                  </Grid>
+                </Grid>
+
+                {memberError && (
+                  <Typography fontSize={12} color={C.error} mt={1}>{memberError}</Typography>
+                )}
               </Box>
             )}
-          </Box>
 
-          {/* Submit Button */}
-          <Box sx={{ mt: 4, display: 'flex', justifyContent: 'flex-end' }}>
+            {errors.members && (
+              <Typography fontSize={12} color={C.error} mt={1}>{errors.members}</Typography>
+            )}
+
+            
+          </Section>
+
+          {/* ── Footer actions ── */}
+          <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2, mt: 1 }}>
             <Button
-              type="button"
               variant="outlined"
-              color="secondary"
               onClick={() => navigate(-1)}
-              sx={{ mr: 2 }}
+              disabled={loading}
+              sx={{ px: 4, borderColor: C.border, color: C.muted, '&:hover': { borderColor: C.primary, color: C.primary } }}
             >
               Cancel
             </Button>
             <Button
               type="submit"
               variant="contained"
-              color="primary"
-              disabled={loading || !formData.title || !formData.dueDate || !creatorComponent.trim()}
+              disabled={loading}
+              sx={{
+                px: 5, fontWeight: 700,
+                bgcolor:    C.primary,
+                boxShadow:  `0 4px 14px ${C.primary}40`,
+                '&:hover':  { bgcolor: '#3451d1', boxShadow: `0 6px 20px ${C.primary}60` },
+                '&:disabled':{ bgcolor: C.border },
+              }}
             >
-              {loading ? <CircularProgress size={24} /> : 'Create Project'}
+              {loading
+                ? <><CircularProgress size={18} sx={{ color: '#fff', mr: 1 }} /> Creating...</>
+                : 'Create Project'
+              }
             </Button>
           </Box>
+
         </Box>
-      </Paper>
-    </Container>
+      </Container>
+    </Box>
   );
 };
 
