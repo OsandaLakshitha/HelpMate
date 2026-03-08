@@ -11,6 +11,7 @@ const {
   getReceivedConnectionRequests,
   acceptConnectionRequest,
   declineConnectionRequest,
+  getConnections,
 } = require("../controllers/peerMatchingController");
 const { protect } = require("../middleware/auth");
 
@@ -49,5 +50,8 @@ router.put("/requests/:requestId/accept", acceptConnectionRequest);
 
 // @route   PUT /api/peer-matching/requests/:requestId/decline
 router.put("/requests/:requestId/decline", declineConnectionRequest);
+
+// @route   GET /api/peer-matching/connections
+router.get("/connections", getConnections);
 
 module.exports = router;

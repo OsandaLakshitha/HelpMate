@@ -57,6 +57,13 @@ exports.getPeerMatches = async (req, res) => {
       });
     }
 
+    if (!currentUser.major) {
+      return res.status(400).json({
+        success: false,
+        message: "Please add a major to your profile before searching for peers.",
+      });
+    }
+
     // Get all other active users with role 'User' only (exclude Admin) and same major
     const allUsers = await User.find({
       _id: { $ne: userId },
@@ -500,6 +507,41 @@ exports.declineConnectionRequest = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Error declining connection request",
+      error: error.message,
+    });
+  }
+};
+
+// Get all accepted connections
+exports.getConnections = async (req, res) => {
+  try {
+    const userId = req.user._id;
+
+    const connections = await ConnectionRequest.find({
+      $or: [
+        { sender: userId, status: "accepted" },
+        { recipient: userId, status: "accepted" },
+      ]
+    }).populate("sender", "firstName lastName avatar university major academicLevel interests skills").populate("recipient", "firstName lastName avatar university major academicLevel interests skills");
+
+    // Format the connections so the frontend gets an array of friends
+    const friends = connections.map(conn => {
+      if (conn.sender._id.toString() === userId.toString()) {
+        return { connectionId: conn._id, ...conn.recipient.toObject() };
+      } else {
+        return { connectionId: conn._id, ...conn.sender.toObject() };
+      }
+    });
+
+    res.status(200).json({
+      success: true,
+      data: friends,
+    });
+  } catch (error) {
+    console.error("Get connections error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error fetching connections",
       error: error.message,
     });
   }

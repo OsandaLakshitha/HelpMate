@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { api } from "../../utils/api";
 
 function PeerMatching() {
@@ -27,6 +27,85 @@ function PeerMatching() {
   const [loadingReceivedRequests, setLoadingReceivedRequests] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
   const [processingRequest, setProcessingRequest] = useState(null);
+
+  const [connections, setConnections] = useState([]);
+  const [showConnections, setShowConnections] = useState(false);
+  const [loadingConnections, setLoadingConnections] = useState(false);
+  
+  const [activeChatUser, setActiveChatUser] = useState(null);
+  const [chatMessages, setChatMessages] = useState([]);
+  const [newMessage, setNewMessage] = useState("");
+  const [chatLoading, setChatLoading] = useState(false);
+  const messagesEndRef = useRef(null);
+
+  // Scroll to bottom of chat
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [chatMessages]);
+
+  useEffect(() => {
+    let interval;
+    if (activeChatUser) {
+      loadChatHistory(activeChatUser._id);
+      interval = setInterval(() => {
+        loadChatHistory(activeChatUser._id);
+      }, 3000);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [activeChatUser]);
+
+  const loadChatHistory = async (friendId) => {
+    try {
+      const response = await api.get(`/api/chat/history/${friendId}`);
+      if (response.success) {
+        setChatMessages(response.data || []);
+      }
+    } catch (err) {
+      console.error("Error loading chat history:", err);
+    }
+  };
+
+  const handleSendMessage = async (e) => {
+    e.preventDefault();
+    if (!newMessage.trim() || !activeChatUser) return;
+    
+    try {
+      const response = await api.post(`/api/chat/send/${activeChatUser._id}`, {
+        content: newMessage
+      });
+      if (response.success) {
+        setChatMessages([...chatMessages, response.data]);
+        setNewMessage("");
+      }
+    } catch (err) {
+      console.error("Error sending message:", err);
+    }
+  };
+
+  const closeChat = () => {
+    setActiveChatUser(null);
+    setChatMessages([]);
+  };
+
+  const loadConnections = async () => {
+    setLoadingConnections(true);
+    try {
+      const response = await api.get("/api/peer-matching/connections");
+      if (response.success) {
+        setConnections(response.data || []);
+      }
+    } catch (err) {
+      console.error("Error loading connections:", err);
+    } finally {
+      setLoadingConnections(false);
+    }
+  };
 
   // Load user profile on component mount
   useEffect(() => {
@@ -323,9 +402,10 @@ function PeerMatching() {
           onClick={() => {
             setShowSentRequests(false);
             setShowReceivedRequests(false);
+            setShowConnections(false);
           }}
           className={`px-6 py-3 rounded-xl font-semibold transition-all ${
-            !showSentRequests && !showReceivedRequests
+            !showSentRequests && !showReceivedRequests && !showConnections
               ? "bg-gradient-to-r from-teal-600 to-cyan-600 text-white shadow-lg"
               : "bg-white text-slate-700 border border-slate-200 hover:bg-slate-50"
           }`}
@@ -336,6 +416,7 @@ function PeerMatching() {
           onClick={() => {
             setShowReceivedRequests(true);
             setShowSentRequests(false);
+            setShowConnections(false);
             loadReceivedRequests();
           }}
           className={`px-6 py-3 rounded-xl font-semibold transition-all relative ${
@@ -355,6 +436,7 @@ function PeerMatching() {
           onClick={() => {
             setShowSentRequests(true);
             setShowReceivedRequests(false);
+            setShowConnections(false);
             loadSentRequests();
           }}
           className={`px-6 py-3 rounded-xl font-semibold transition-all ${
@@ -367,6 +449,26 @@ function PeerMatching() {
           {sentRequests.length > 0 && (
             <span className="ml-2 px-2 py-0.5 bg-white text-teal-600 rounded-full text-xs font-bold">
               {sentRequests.length}
+            </span>
+          )}
+        </button>
+        <button
+          onClick={() => {
+            setShowConnections(true);
+            setShowSentRequests(false);
+            setShowReceivedRequests(false);
+            loadConnections();
+          }}
+          className={`px-6 py-3 rounded-xl font-semibold transition-all ${
+            showConnections
+              ? "bg-gradient-to-r from-teal-600 to-cyan-600 text-white shadow-lg"
+              : "bg-white text-slate-700 border border-slate-200 hover:bg-slate-50"
+          }`}
+        >
+          My Connections
+          {connections.length > 0 && (
+            <span className="ml-2 px-2 py-0.5 bg-white text-teal-600 rounded-full text-xs font-bold">
+              {connections.length}
             </span>
           )}
         </button>
@@ -697,6 +799,82 @@ function PeerMatching() {
               </p>
               <button
                 onClick={() => setShowSentRequests(false)}
+                className="px-6 py-2 bg-gradient-to-r from-teal-600 to-cyan-600 text-white font-semibold rounded-lg hover:brightness-105 transition-all"
+              >
+                Find Matches
+              </button>
+            </div>
+          )}
+        </div>
+      ) : showConnections ? (
+        <div>
+          <div className="mb-8">
+            <h2 className="text-2xl font-bold text-slate-800 mb-2">
+              My Connections
+            </h2>
+            <p className="text-slate-600">
+              Students you have connected with
+            </p>
+          </div>
+
+          {loadingConnections ? (
+            <div className="text-center py-12">
+              <div className="animate-spin w-16 h-16 border-4 border-teal-500 border-t-transparent rounded-full mx-auto mb-6"></div>
+              <p className="text-slate-600">Loading connections...</p>
+            </div>
+          ) : connections.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {connections.map((user) => (
+                <div
+                  key={user._id}
+                  className="bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-all p-6 flex flex-col items-center text-center"
+                >
+                  <div className="w-20 h-20 mb-4 bg-gradient-to-r from-teal-500 to-cyan-500 rounded-full flex items-center justify-center text-white font-bold text-xl flex-shrink-0">
+                    {user.avatar ? (
+                      <img
+                        src={user.avatar}
+                        alt={user.firstName}
+                        className="w-full h-full rounded-full object-cover"
+                      />
+                    ) : (
+                      getInitials(user.firstName, user.lastName)
+                    )}
+                  </div>
+                  <h3 className="text-lg font-bold text-slate-800 mb-1">
+                    {user.firstName} {user.lastName}
+                  </h3>
+                  <p className="text-sm text-slate-600 mb-4">
+                    {user.major && `${user.major}, `}
+                    {user.university || "University not set"}
+                  </p>
+                  
+                  <button
+                    onClick={() => setActiveChatUser(user)}
+                    className="w-full py-2 bg-gradient-to-r from-teal-600 to-cyan-600 text-white font-semibold rounded-lg hover:brightness-105 transition-all flex items-center justify-center gap-2"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                    </svg>
+                    Message
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12 bg-slate-50 rounded-2xl">
+              <div className="w-16 h-16 bg-slate-200 rounded-full flex items-center justify-center mx-auto mb-4">
+                 <svg className="w-8 h-8 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.196-2.121M9 12a4 4 0 100-8 4 4 0 000 8zm8 8v-2a3 3 0 00-3-3H6a3 3 0 00-3 3v2" />
+                 </svg>
+              </div>
+              <h3 className="text-lg font-medium text-slate-700 mb-2">
+                No Connections Yet
+              </h3>
+              <p className="text-slate-600 mb-4">
+                Connect with matching peers to start studying together!
+              </p>
+              <button
+                onClick={() => setShowConnections(false)}
                 className="px-6 py-2 bg-gradient-to-r from-teal-600 to-cyan-600 text-white font-semibold rounded-lg hover:brightness-105 transition-all"
               >
                 Find Matches
@@ -1262,6 +1440,72 @@ function PeerMatching() {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Chat UI Overlay */}
+      {activeChatUser && (
+        <div className="fixed bottom-4 right-4 w-96 bg-white rounded-t-xl rounded-b-lg shadow-2xl border border-slate-200 flex flex-col z-40 overflow-hidden" style={{ height: '500px' }}>
+          {/* Chat Header */}
+          <div className="bg-gradient-to-r from-teal-600 to-cyan-600 p-4 text-white flex justify-between items-center shadow-md">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center font-bold">
+                {activeChatUser.avatar ? (
+                  <img src={activeChatUser.avatar} alt="avatar" className="w-full h-full rounded-full object-cover" />
+                ) : (
+                  getInitials(activeChatUser.firstName, activeChatUser.lastName)
+                )}
+              </div>
+              <div className="font-semibold">
+                {activeChatUser.firstName} {activeChatUser.lastName}
+              </div>
+            </div>
+            <button onClick={closeChat} className="text-white/80 hover:text-white transition-colors">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          {/* Chat Messages */}
+          <div className="flex-1 p-4 overflow-y-auto bg-slate-50 flex flex-col gap-3">
+             {chatMessages.length === 0 ? (
+                <div className="text-center text-slate-500 m-auto text-sm">
+                  Say hi to {activeChatUser.firstName}!
+                </div>
+             ) : (
+               chatMessages.map((msg, idx) => (
+                 <div key={idx} className={`max-w-[80%] rounded-xl p-3 text-sm ${
+                   msg.sender === profile._id 
+                     ? 'bg-teal-600 text-white self-end rounded-tr-sm' 
+                     : 'bg-white border border-slate-200 text-slate-800 self-start rounded-tl-sm shadow-sm'
+                 }`}>
+                   {msg.content}
+                 </div>
+               ))
+             )}
+             <div ref={messagesEndRef} />
+          </div>
+
+          {/* Chat Input */}
+          <form onSubmit={handleSendMessage} className="p-3 bg-white border-t border-slate-200 flex gap-2">
+            <input 
+              type="text" 
+              value={newMessage} 
+              onChange={(e) => setNewMessage(e.target.value)}
+              placeholder="Type a message..." 
+              className="flex-1 px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent outline-none text-sm"
+            />
+            <button 
+              type="submit" 
+              disabled={!newMessage.trim()}
+              className="bg-teal-600 text-white p-2 text-sm rounded-lg hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+              </svg>
+            </button>
+          </form>
         </div>
       )}
     </div>
