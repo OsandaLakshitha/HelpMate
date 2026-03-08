@@ -44,6 +44,8 @@ import PeerMatching from "./pages/user/PeerMatching";
 import NotesUpload from "./pages/user/NotesUpload";
 import MyNotes from "./pages/user/MyNotes";
 import NoteDetail from "./pages/user/NoteDetail";
+import StudyDashboard from "./pages/user/StudyDashboard";
+import ExamPrepPage from './pages/user/ExamPrepPage';
 
 // 404 Page
 import NotFound from "./pages/NotFound";
@@ -93,8 +95,7 @@ function App() {
             }
           >
             <Route index element={<Navigate to="/user/dashboard" replace />} />
-            <Route path="dashboard" element={<UserDashboard />} />
-            <Route path="study" element={<UserStudy />} />
+            <Route path="dashboard" element={<StudyDashboard />} />
             <Route path="career" element={<UserCareer />} />
             <Route path="wellness" element={<UserWellness />} />
             <Route path="files" element={<UserFiles />} />
@@ -105,6 +106,7 @@ function App() {
             <Route path="/user/notes/upload" element={<NotesUpload />} />
             <Route path="/user/notes/list" element={<MyNotes />} />
             <Route path="notes/:id" element={<NoteDetail />} />
+            <Route path="/user/exam-prep/:examId" element={<ExamPrepPage />} />
           </Route>
 
           {/* 404 Route */}
