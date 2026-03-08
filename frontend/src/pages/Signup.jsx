@@ -17,6 +17,48 @@ import {
   BookOpen,
 } from "lucide-react";
 
+const COMMON_MAJORS = [
+  "Accounting",
+  "Agriculture",
+  "Architecture",
+  "Biochemistry",
+  "Biology",
+  "Biomedical Engineering",
+  "Business Administration",
+  "Chemical Engineering",
+  "Chemistry",
+  "Civil Engineering",
+  "Communications",
+  "Computer Engineering",
+  "Computer Science",
+  "Data Science",
+  "Economics",
+  "Education",
+  "Electrical Engineering",
+  "English",
+  "Environmental Science",
+  "Finance",
+  "Graphic Design",
+  "Health Science",
+  "History",
+  "Industrial Engineering",
+  "Information Systems",
+  "Information Technology",
+  "Management",
+  "Marketing",
+  "Mathematics",
+  "Mechanical Engineering",
+  "Nursing",
+  "Philosophy",
+  "Physics",
+  "Political Science",
+  "Psychology",
+  "Software Engineering",
+  "Statistics",
+  "Supply Chain Management",
+  "Other"
+];
+
 const Signup = () => {
   const navigate = useNavigate();
   const { register } = useAuth();
@@ -331,15 +373,18 @@ const Signup = () => {
                 >
                   Major
                 </label>
-                <input
+                <select
                   id="major"
                   name="major"
-                  type="text"
                   value={formData.major}
                   onChange={handleChange}
                   className="block w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all duration-200"
-                  placeholder="Computer Science"
-                />
+                >
+                  <option value="" disabled>Select your major</option>
+                  {COMMON_MAJORS.map((m) => (
+                    <option key={m} value={m}>{m}</option>
+                  ))}
+                </select>
               </div>
             </div>
 
@@ -476,13 +521,12 @@ const Signup = () => {
                       Password strength:
                     </span>
                     <span
-                      className={`text-xs font-medium ${
-                        passwordStrength <= 1
-                          ? "text-red-600"
-                          : passwordStrength <= 3
+                      className={`text-xs font-medium ${passwordStrength <= 1
+                        ? "text-red-600"
+                        : passwordStrength <= 3
                           ? "text-yellow-600"
                           : "text-green-600"
-                      }`}
+                        }`}
                     >
                       {getPasswordStrengthText()}
                     </span>

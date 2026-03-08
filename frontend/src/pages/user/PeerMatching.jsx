@@ -107,6 +107,18 @@ function PeerMatching() {
     }
   };
 
+  const formatMessageTime = (dateString) => {
+    if (!dateString) return "";
+    const date = new Date(dateString);
+    return date.toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
+    });
+  };
+
   // Load user profile on component mount
   useEffect(() => {
     loadProfile();
@@ -1475,12 +1487,21 @@ function PeerMatching() {
                 </div>
              ) : (
                chatMessages.map((msg, idx) => (
-                 <div key={idx} className={`max-w-[80%] rounded-xl p-3 text-sm ${
-                   msg.sender === profile._id 
-                     ? 'bg-teal-600 text-white self-end rounded-tr-sm' 
-                     : 'bg-white border border-slate-200 text-slate-800 self-start rounded-tl-sm shadow-sm'
+                 <div key={idx} className={`flex flex-col max-w-[80%] ${
+                   msg.sender === profile._id ? 'self-end' : 'self-start'
                  }`}>
-                   {msg.content}
+                   <div className={`rounded-xl p-3 text-sm ${
+                     msg.sender === profile._id 
+                       ? 'bg-teal-600 text-white rounded-tr-sm' 
+                       : 'bg-white border border-slate-200 text-slate-800 rounded-tl-sm shadow-sm'
+                   }`}>
+                     {msg.content}
+                   </div>
+                   <span className={`text-[10px] mt-1 text-slate-400 ${
+                     msg.sender === profile._id ? 'text-right' : 'text-left'
+                   }`}>
+                     {formatMessageTime(msg.createdAt)}
+                   </span>
                  </div>
                ))
              )}
