@@ -17,7 +17,7 @@ exports.updateProfile = async (req, res) => {
     const user = await User.findByIdAndUpdate(
       userId,
       { $set: updates },
-      { new: true }
+      { new: true },
     );
 
     if (!user) {
@@ -57,19 +57,20 @@ exports.getPeerMatches = async (req, res) => {
       });
     }
 
-    // Get all other active users with role 'User' only (exclude Admin)
+    // Get all other active users with role 'User' only (exclude Admin) and same major
     const allUsers = await User.find({
       _id: { $ne: userId },
       isActive: true,
       role: { $regex: /^user$/i },
+      major: currentUser.major, // Only match users with the same major
     }).select(
-      "firstName lastName avatar university major academicLevel interests skills plan"
+      "firstName lastName avatar university major academicLevel interests skills plan",
     );
 
     if (allUsers.length === 0) {
       return res.status(200).json({
         success: true,
-        message: "No other users available",
+        message: "No users found with the same major",
         data: { matches: [] },
       });
     }
@@ -80,7 +81,7 @@ exports.getPeerMatches = async (req, res) => {
       // With fewer than 6 users, show all instead of clustering
       myGroupUsers = allUsers;
       console.log(
-        `Showing all ${allUsers.length} users (too few for clustering)`
+        `Showing all ${allUsers.length} users (too few for clustering)`,
       );
     } else {
       // Convert all users to numbers
@@ -97,7 +98,7 @@ exports.getPeerMatches = async (req, res) => {
       myGroupUsers = allUsers.filter((_, idx) => userGroups[idx] === myGroup);
 
       console.log(
-        `Clustered ${allUsers.length} users into ${numClusters} groups. Current user in group ${myGroup}. Found ${myGroupUsers.length} matches.`
+        `Clustered ${allUsers.length} users into ${numClusters} groups. Current user in group ${myGroup}. Found ${myGroupUsers.length} matches.`,
       );
     }
 
@@ -147,7 +148,7 @@ exports.getProfile = async (req, res) => {
     const userId = req.user._id;
 
     const user = await User.findById(userId).select(
-      "firstName lastName email avatar university major academicLevel interests skills plan"
+      "firstName lastName email avatar university major academicLevel interests skills plan",
     );
 
     if (!user) {
@@ -177,7 +178,7 @@ exports.getUserProfile = async (req, res) => {
     const { userId } = req.params;
 
     const user = await User.findById(userId).select(
-      "firstName lastName avatar university major academicLevel interests skills plan"
+      "firstName lastName avatar university major academicLevel interests skills plan",
     );
 
     if (!user) {
@@ -226,7 +227,7 @@ exports.getAllUsers = async (req, res) => {
 
     const users = await User.find(query)
       .select(
-        "firstName lastName avatar university major academicLevel interests skills plan"
+        "firstName lastName avatar university major academicLevel interests skills plan",
       )
       .limit(parseInt(limit))
       .skip((parseInt(page) - 1) * parseInt(limit))
@@ -271,10 +272,10 @@ exports.sendConnectionRequest = async (req, res) => {
 
     // Get sender and recipient details
     const sender = await User.findById(senderId).select(
-      "firstName lastName email university major"
+      "firstName lastName email university major",
     );
     const recipient = await User.findById(recipientId).select(
-      "firstName lastName email"
+      "firstName lastName email",
     );
 
     if (!recipient) {
@@ -335,7 +336,7 @@ exports.getSentConnectionRequests = async (req, res) => {
     })
       .populate(
         "recipient",
-        "firstName lastName avatar university major academicLevel"
+        "firstName lastName avatar university major academicLevel",
       )
       .sort({ sentAt: -1 })
       .limit(parseInt(limit))
@@ -383,7 +384,7 @@ exports.getReceivedConnectionRequests = async (req, res) => {
     const connectionRequests = await ConnectionRequest.find(query)
       .populate(
         "sender",
-        "firstName lastName avatar university major academicLevel interests skills"
+        "firstName lastName avatar university major academicLevel interests skills",
       )
       .sort({ sentAt: -1 })
       .limit(parseInt(limit))
