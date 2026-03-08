@@ -8,8 +8,8 @@ const { protect } = require('../middleware/auth');
 const Note = require('../models/Note');
 const { extractTextFromPdf } = require('../utils/pdfUtils');
 const { generateMCQs } = require('../ai/generator');
-const { generateShortNotes } = require('../utils/shortNotes');
-const { generateFlashCards } = require('../utils/flashCards');
+const { generateShortNotes, generateBasicShortNotes } = require('../utils/summaryGenerator');
+const { generateFlashCards } = require('../utils/flashCardGenerator');
 
 // Ensure uploads directory exists
 const uploadDir = path.join(__dirname, '../uploads');
@@ -41,7 +41,8 @@ const upload = multer({
 // ============== UPLOAD NOTE ==============
 router.post('/upload', protect, upload.single('lectureNote'), async (req, res) => {
     try {
-        console.log(`\n📄 Upload from user: ${req.user.email}`);
+        console.log(`\n📄 ========== UPLOAD REQUEST ==========`);
+        console.log(`User: ${req.user.email}`);
         
         if (!req.file) {
             return res.status(400).json({ success: false, error: 'No file uploaded' });
@@ -60,15 +61,19 @@ router.post('/upload', protect, upload.single('lectureNote'), async (req, res) =
         
         const moduleCode = req.body.moduleCode || '';
         const moduleName = req.body.moduleName || '';
+        const numQuestions = parseInt(req.body.numQuestions) || 20;
+        const numFlashCards = parseInt(req.body.numFlashCards) || 15;
         
-        console.log(`📄 Processing: ${fileName}`);
-        console.log(`🏷️ Tags: ${tags.join(', ')}`);
+        console.log(`📄 File: ${fileName}`);
+        console.log(`🏷️ Module: ${moduleCode} - ${moduleName}`);
+        console.log(`📝 Requested: ${numQuestions} MCQs, ${numFlashCards} Flashcards`);
         
         // Extract text
         let extractedText;
         try {
             extractedText = await extractTextFromPdf(filePath);
         } catch (pdfError) {
+            console.error('❌ PDF extraction error:', pdfError.message);
             return res.status(400).json({ success: false, error: 'Could not read PDF file.' });
         }
 
@@ -79,24 +84,33 @@ router.post('/upload', protect, upload.single('lectureNote'), async (req, res) =
         const wordCount = extractedText.split(/\s+/).length;
         console.log(`📝 Extracted ${wordCount} words`);
 
-        // Generate MCQs
-        const numQuestions = parseInt(req.body.numQuestions) || 20;
-        let mcqs = [];
+        // Generate all content in parallel for speed
+        console.log('\n🚀 Starting AI content generation...\n');
         
-        try {
-            mcqs = await generateMCQs(extractedText, numQuestions);
-            console.log(`✅ Generated ${mcqs.length} MCQs`);
-        } catch (aiError) {
-            console.error('❌ AI generation error:', aiError.message);
-        }
+        const [mcqs, flashCards, shortNotes] = await Promise.all([
+            // Generate MCQs
+            generateMCQs(extractedText, numQuestions).catch(err => {
+                console.error('❌ MCQ generation error:', err.message);
+                return [];
+            }),
+            
+            // Generate Flash Cards
+            generateFlashCards(extractedText, numFlashCards).catch(err => {
+                console.error('❌ Flashcard generation error:', err.message);
+                return [];
+            }),
+            
+            // Generate Short Notes (AI Summaries)
+            generateShortNotes(extractedText, 10).catch(err => {
+                console.error('❌ Summary generation error:', err.message);
+                return generateBasicShortNotes(extractedText);
+            })
+        ]);
 
-        // Generate Short Notes
-        const shortNotes = generateShortNotes(extractedText);
-        console.log(`📋 Generated ${shortNotes.totalPoints} short note points`);
-
-        // Generate Flash Cards
-        const flashCards = generateFlashCards(extractedText);
-        console.log(`🎴 Generated ${flashCards.length} flash cards`);
+        console.log(`\n📊 ========== GENERATION RESULTS ==========`);
+        console.log(`✅ MCQs: ${mcqs.length}`);
+        console.log(`✅ Flashcards: ${flashCards.length}`);
+        console.log(`✅ Short Notes: ${shortNotes.totalPoints} points (AI: ${shortNotes.aiGenerated ? 'Yes' : 'No'})`);
 
         // Save to MongoDB
         const note = new Note({
@@ -120,7 +134,8 @@ router.post('/upload', protect, upload.single('lectureNote'), async (req, res) =
         });
 
         await note.save();
-        console.log(`✅ Note saved: ${note._id}\n`);
+        console.log(`💾 Note saved: ${note._id}`);
+        console.log(`📄 ========== UPLOAD COMPLETE ==========\n`);
 
         res.json({
             success: true,
@@ -290,6 +305,176 @@ router.delete('/:id', protect, async (req, res) => {
     }
 });
 
+// ============== REGENERATE ALL ==============
+router.post('/:id/regenerate-all', protect, async (req, res) => {
+    try {
+        console.log('\n🔄 ========== REGENERATE ALL ==========');
+        
+        const { numQuestions = 20, numFlashCards = 15 } = req.body;
+        
+        const note = await Note.findOne({
+            _id: req.params.id,
+            userId: req.user._id
+        });
+        
+        if (!note) {
+            return res.status(404).json({ success: false, error: 'Note not found' });
+        }
+        
+        if (!note.fullText) {
+            return res.status(400).json({ success: false, error: 'No text content found' });
+        }
+
+        console.log(`📄 Note: ${note.fileName}`);
+        console.log(`📝 Generating: ${numQuestions} MCQs, ${numFlashCards} Flashcards`);
+
+        // Generate all content in parallel
+        const [mcqs, flashCards, shortNotes] = await Promise.all([
+            generateMCQs(note.fullText, numQuestions).catch(err => {
+                console.error('MCQ error:', err.message);
+                return note.mcqs || [];
+            }),
+            generateFlashCards(note.fullText, numFlashCards).catch(err => {
+                console.error('Flashcard error:', err.message);
+                return note.flashCards || [];
+            }),
+            generateShortNotes(note.fullText, 10).catch(err => {
+                console.error('Summary error:', err.message);
+                return generateBasicShortNotes(note.fullText);
+            })
+        ]);
+        
+        // Update note
+        note.mcqs = mcqs;
+        note.flashCards = flashCards;
+        note.shortNotes = shortNotes;
+        note.stats = {
+            mcqCount: mcqs.length,
+            shortNotePoints: shortNotes.totalPoints,
+            flashCardCount: flashCards.length
+        };
+        
+        await note.save();
+
+        console.log(`✅ Regenerated: ${mcqs.length} MCQs, ${flashCards.length} Flashcards, ${shortNotes.totalPoints} Notes`);
+        console.log('🔄 ========== REGENERATE COMPLETE ==========\n');
+        
+        res.json({
+            success: true,
+            mcqs,
+            flashCards,
+            shortNotes,
+            stats: note.stats
+        });
+    } catch (err) {
+        console.error('Regenerate error:', err);
+        res.status(500).json({ success: false, error: 'Failed to regenerate content' });
+    }
+});
+
+// ============== REGENERATE MCQs ONLY ==============
+router.post('/:id/regenerate-mcqs', protect, async (req, res) => {
+    try {
+        const { numQuestions = 20 } = req.body;
+        
+        const note = await Note.findOne({
+            _id: req.params.id,
+            userId: req.user._id
+        });
+        
+        if (!note) {
+            return res.status(404).json({ success: false, error: 'Note not found' });
+        }
+        
+        if (!note.fullText) {
+            return res.status(400).json({ success: false, error: 'No text content found' });
+        }
+
+        console.log(`🔄 Regenerating MCQs for: ${note.fileName}`);
+        
+        const mcqs = await generateMCQs(note.fullText, numQuestions);
+        
+        note.mcqs = mcqs;
+        note.stats.mcqCount = mcqs.length;
+        await note.save();
+
+        console.log(`✅ Regenerated ${mcqs.length} MCQs`);
+        
+        res.json({ success: true, mcqs, count: mcqs.length });
+    } catch (err) {
+        console.error('Regenerate MCQs error:', err);
+        res.status(500).json({ success: false, error: 'Failed to regenerate MCQs' });
+    }
+});
+
+// ============== REGENERATE FLASHCARDS ONLY ==============
+router.post('/:id/regenerate-flashcards', protect, async (req, res) => {
+    try {
+        const { numFlashCards = 15 } = req.body;
+        
+        const note = await Note.findOne({
+            _id: req.params.id,
+            userId: req.user._id
+        });
+        
+        if (!note) {
+            return res.status(404).json({ success: false, error: 'Note not found' });
+        }
+        
+        if (!note.fullText) {
+            return res.status(400).json({ success: false, error: 'No text content found' });
+        }
+
+        console.log(`🔄 Regenerating Flashcards for: ${note.fileName}`);
+        
+        const flashCards = await generateFlashCards(note.fullText, numFlashCards);
+        
+        note.flashCards = flashCards;
+        note.stats.flashCardCount = flashCards.length;
+        await note.save();
+
+        console.log(`✅ Regenerated ${flashCards.length} Flashcards`);
+        
+        res.json({ success: true, flashCards, count: flashCards.length });
+    } catch (err) {
+        console.error('Regenerate Flashcards error:', err);
+        res.status(500).json({ success: false, error: 'Failed to regenerate flashcards' });
+    }
+});
+
+// ============== REGENERATE SHORT NOTES ONLY ==============
+router.post('/:id/regenerate-notes', protect, async (req, res) => {
+    try {
+        const note = await Note.findOne({
+            _id: req.params.id,
+            userId: req.user._id
+        });
+        
+        if (!note) {
+            return res.status(404).json({ success: false, error: 'Note not found' });
+        }
+        
+        if (!note.fullText) {
+            return res.status(400).json({ success: false, error: 'No text content found' });
+        }
+
+        console.log(`🔄 Regenerating Short Notes for: ${note.fileName}`);
+        
+        const shortNotes = await generateShortNotes(note.fullText, 10);
+        
+        note.shortNotes = shortNotes;
+        note.stats.shortNotePoints = shortNotes.totalPoints;
+        await note.save();
+
+        console.log(`✅ Regenerated ${shortNotes.totalPoints} Short Note points`);
+        
+        res.json({ success: true, shortNotes, totalPoints: shortNotes.totalPoints });
+    } catch (err) {
+        console.error('Regenerate Short Notes error:', err);
+        res.status(500).json({ success: false, error: 'Failed to regenerate short notes' });
+    }
+});
+
 // ============== GET USER'S TAGS & MODULES ==============
 router.get('/meta/tags', protect, async (req, res) => {
     try {
@@ -326,16 +511,74 @@ router.get('/meta/stats', protect, async (req, res) => {
     try {
         const notes = await Note.find({ userId: req.user._id }).lean();
         
+        let totalScore = 0;
+        let totalAttempts = 0;
+        
+        notes.forEach(n => {
+            if (n.quizAttempts) {
+                n.quizAttempts.forEach(a => {
+                    totalScore += a.percentage || 0;
+                    totalAttempts++;
+                });
+            }
+        });
+        
         const stats = {
             totalNotes: notes.length,
             totalMCQs: notes.reduce((sum, n) => sum + (n.stats?.mcqCount || 0), 0),
             totalFlashCards: notes.reduce((sum, n) => sum + (n.stats?.flashCardCount || 0), 0),
-            totalQuizAttempts: notes.reduce((sum, n) => sum + (n.quizAttempts?.length || 0), 0)
+            totalQuizAttempts: totalAttempts,
+            averageScore: totalAttempts > 0 ? Math.round(totalScore / totalAttempts) : 0
         };
         
         res.json({ success: true, stats });
     } catch (err) {
         res.status(500).json({ success: false, error: 'Failed to fetch stats' });
+    }
+});
+
+// ============== DASHBOARD STATS ==============
+router.get('/dashboard/stats', protect, async (req, res) => {
+    try {
+        const notes = await Note.find({ userId: req.user._id }).lean();
+        
+        let totalScore = 0;
+        let totalAttempts = 0;
+        
+        notes.forEach(n => {
+            if (n.quizAttempts) {
+                n.quizAttempts.forEach(a => {
+                    totalScore += a.percentage || 0;
+                    totalAttempts++;
+                });
+            }
+        });
+        
+        // Get recent notes
+        const recentNotes = notes
+            .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+            .slice(0, 5)
+            .map(n => ({
+                id: n._id,
+                fileName: n.fileName,
+                moduleCode: n.moduleCode,
+                uploadedAt: n.createdAt,
+                stats: n.stats
+            }));
+        
+        res.json({
+            success: true,
+            stats: {
+                totalNotes: notes.length,
+                totalMCQs: notes.reduce((sum, n) => sum + (n.stats?.mcqCount || 0), 0),
+                totalFlashCards: notes.reduce((sum, n) => sum + (n.stats?.flashCardCount || 0), 0),
+                totalQuizAttempts: totalAttempts,
+                averageScore: totalAttempts > 0 ? Math.round(totalScore / totalAttempts) : 0
+            },
+            recentNotes
+        });
+    } catch (err) {
+        res.status(500).json({ success: false, error: 'Failed to fetch dashboard stats' });
     }
 });
 
