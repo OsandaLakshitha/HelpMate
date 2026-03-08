@@ -58,6 +58,9 @@ app.use("/api", require("./routes/recommendations"));
 // Peer Matching routes
 app.use("/api/peer-matching", require("./routes/peerMatching"));
 
+// Chat routes
+app.use("/api/chat", require("./routes/chat"));
+
 // ============== STATIC FILES ==============
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
