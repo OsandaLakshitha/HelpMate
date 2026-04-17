@@ -41,36 +41,37 @@ const userToNumbers = (user) => {
  * @returns {number} - Match score (0-100 points)
  *
  * Scoring breakdown:
- *   - Same university: +30 points
- *   - Common interests: +5 each (max 30)
- *   - Common skills: +4 each (max 20)
+ *   - Same university: +20 points
+ *   - Common interests: +10 each (max 30)
+ *   - Common skills: +10 each (max 30)
  *   - Same plan: +10 points
  *   - Same academic level: +10 points
  * Total possible: 100 points
+ * Note: Major matching is a required filter, not scored
  */
 const calculateMatchScore = (user1, user2) => {
   let score = 0;
 
-  // 1. Same university? +30 points
+  // 1. Same university? +20 points
   if (
     user1.university &&
     user2.university &&
     user1.university.toLowerCase() === user2.university.toLowerCase()
   ) {
-    score += 30;
+    score += 20;
   }
 
-  // 2. Common interests? +5 points each (max 30)
+  // 2. Common interests? +10 points each (max 30)
   const commonInterests = (user1.interests || []).filter((interest) =>
-    (user2.interests || []).includes(interest)
+    (user2.interests || []).includes(interest),
   ).length;
-  score += Math.min(commonInterests * 5, 30);
+  score += Math.min(commonInterests * 10, 30);
 
-  // 3. Common skills? +4 points each (max 20)
+  // 3. Common skills? +10 points each (max 30)
   const commonSkills = (user1.skills || []).filter((skill) =>
-    (user2.skills || []).includes(skill)
+    (user2.skills || []).includes(skill),
   ).length;
-  score += Math.min(commonSkills * 4, 20);
+  score += Math.min(commonSkills * 10, 30);
 
   // 4. Same plan? +10 points
   if (user1.plan === user2.plan) {
