@@ -5,6 +5,18 @@ const { protect } = require('../../middleware/auth');
 
 router.use(protect);
 
-router.get('/dashboard-summary', getDashboardSummary); // GET /stats/dashboard-summary
+/**
+ * @swagger
+ * /api/masss/stats/dashboard-summary:
+ *   get:
+ *     summary: Get MASSS dashboard summary
+ *     tags: [MASSS Stats]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Dashboard summary data
+ */
+router.get('/dashboard-summary', getDashboardSummary);
 
 module.exports = router;
