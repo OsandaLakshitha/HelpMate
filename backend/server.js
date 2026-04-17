@@ -4,6 +4,8 @@ const cors = require("cors");
 const dotenv = require("dotenv");
 const notesRouter = require("./routes/notes");
 const path = require("path");
+const swaggerUi = require("swagger-ui-express");
+const swaggerSpec = require("./config/swagger");
 
 dotenv.config();
 
@@ -19,6 +21,7 @@ app.use(
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+
 // Database connection
 mongoose
   .connect(process.env.MONGODB_URI, {
@@ -27,6 +30,9 @@ mongoose
   })
   .then(() => console.log("✅ MongoDB connected"))
   .catch((err) => console.error("❌ MongoDB connection error:", err));
+
+// 
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 // Routes
 app.use("/api/auth", require("./routes/auth"));
