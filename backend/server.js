@@ -61,8 +61,13 @@ app.use("/api", require("./routes/recommendations"));
 app.use("/api/peer-matching", require("./routes/peerMatching"));
 
 
-
-
+// MASSS routes
+app.use('/api/masss', require('./routes/masss/profileRoutes'))
+app.use('/api/masss', require('./routes/masss/moduleRoutes'))
+app.use('/api/masss', require('./routes/masss/examRoutes'))
+app.use('/api/masss', require('./routes/masss/taskRoutes'))
+app.use('/api/masss', require('./routes/masss/sessionRoutes'))
+app.use('/api/masss', require('./routes/masss/statsRoutes'))
 
 
 
