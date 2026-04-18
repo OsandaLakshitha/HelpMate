@@ -201,4 +201,22 @@ process.on('SIGINT', () => {
     });
 });
 
+
+// TEMPORARY — add at bottom of server.js, remove after checkpoint
+const {
+  MasssProfile,
+  MasssModule,
+  MasssExam,
+  MasssTask,
+  MasssSession,
+} = require('./models/masss')
+
+console.log('[MASSS] Models loaded:',
+  MasssProfile.modelName,
+  MasssModule.modelName,
+  MasssExam.modelName,
+  MasssTask.modelName,
+  MasssSession.modelName,
+)
+
 module.exports = app;
