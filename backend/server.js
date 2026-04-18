@@ -62,13 +62,7 @@ app.use("/api/peer-matching", require("./routes/peerMatching"));
 
 
 
-// MASSS routes
-app.use("/api/masss/profile", require("./routes/masss/profileRoutes"));
-app.use("/api/masss/modules", require("./routes/masss/moduleRoutes"));
-app.use("/api/masss/exams", require("./routes/masss/examRoutes"));
-app.use("/api/masss/tasks", require("./routes/masss/taskRoutes"));
-app.use("/api/masss/sessions", require("./routes/masss/sessionRoutes"));
-app.use("/api/masss/stats", require("./routes/masss/statsRoutes"));
+
 
 
 
