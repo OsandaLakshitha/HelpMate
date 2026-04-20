@@ -22,7 +22,11 @@ import {
 
 
 
+
 const HowItWorks = () => {
+
+
+
 
   const containerRef = useRef(null);
   const { scrollYProgress } = useScroll({
@@ -85,6 +89,7 @@ const HowItWorks = () => {
 
   return (
     <div ref={containerRef} className="min-h-screen bg-slate-50">
+
       {/* Hero Section with Parallax */}
       <section className="relative h-screen flex items-center justify-center overflow-hidden bg-gradient-to-br from-slate-900 via-teal-900 to-cyan-900">
         {/* Parallax Background Elements */}
