@@ -20,7 +20,10 @@ import {
   Lightbulb,
 } from 'lucide-react';
 
+
+
 const HowItWorks = () => {
+
   const containerRef = useRef(null);
   const { scrollYProgress } = useScroll({
     target: containerRef,
