@@ -63,10 +63,10 @@ app.use("/api/peer-matching", require("./routes/peerMatching"));
 
 // MASSS routes
 app.use('/api/masss', require('./routes/masss/profileRoutes'))
-app.use('/api/masss', require('./routes/masss/moduleRoutes'))
-app.use('/api/masss', require('./routes/masss/examRoutes'))
-app.use('/api/masss', require('./routes/masss/taskRoutes'))
-app.use('/api/masss', require('./routes/masss/sessionRoutes'))
+app.use('/api/masss/modules', require('./routes/masss/moduleRoutes'));
+app.use('/api/masss/exams', require('./routes/masss/examRoutes'))
+app.use('/api/masss/tasks', require('./routes/masss/taskRoutes'))
+app.use('/api/masss/sessions', require('./routes/masss/sessionRoutes'))
 app.use('/api/masss', require('./routes/masss/statsRoutes'))
 
 
@@ -200,5 +200,23 @@ process.on('SIGINT', () => {
         process.exit(0);
     });
 });
+
+
+// TEMPORARY — add at bottom of server.js, remove after checkpoint
+const {
+  MasssProfile,
+  MasssModule,
+  MasssExam,
+  MasssTask,
+  MasssSession,
+} = require('./models/masss')
+
+console.log('[MASSS] Models loaded:',
+  MasssProfile.modelName,
+  MasssModule.modelName,
+  MasssExam.modelName,
+  MasssTask.modelName,
+  MasssSession.modelName,
+)
 
 module.exports = app;

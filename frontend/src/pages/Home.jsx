@@ -27,7 +27,12 @@ import {
   Play,
 } from 'lucide-react';
 
+
+
 const Home = () => {
+
+
+
   const containerRef = useRef(null);
   const { scrollYProgress } = useScroll({
     target: containerRef,
