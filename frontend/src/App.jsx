@@ -50,6 +50,50 @@ import ExamPrepPage from './pages/user/ExamPrepPage';
 // 404 Page
 import NotFound from "./pages/NotFound";
 
+
+// ──  MASSS imports ────────────────────────────────────────────────────
+import { MasssLayout }         from "./features/masss/components/layout/MasssLayout";
+import MasssProtectedRoute     from "./features/masss/components/MasssProtectedRoute";
+import { MasssProvider }       from "./features/masss/context/MasssContext";
+
+// Lazy load MASSS pages for performance
+import { lazy, Suspense } from "react";
+
+const MasssOnboarding   = lazy(() => import("./features/masss/pages/OnboardingPage"));
+const MasssDashboard    = lazy(() => import("./features/masss/pages/DashboardPage"));
+const MasssSchedule     = lazy(() => import("./features/masss/pages/SchedulePage"));
+const MasssModules      = lazy(() => import("./features/masss/pages/ModulesPage"));
+const MasssModuleDetail = lazy(() => import("./features/masss/pages/ModuleDetailPage"));
+const MasssTasksPage    = lazy(() => import("./features/masss/pages/TasksPage"));
+const MassFocusPage     = lazy(() => import("./features/masss/pages/FocusPage"));
+const MasssSessionsPage = lazy(() => import("./features/masss/pages/SessionsPage"));
+const MasssInsights     = lazy(() => import("./features/masss/pages/InsightsPage"));
+const MasssSettings     = lazy(() => import("./features/masss/pages/SettingsLayout"));
+const MasssProfile      = lazy(() => import("./features/masss/pages/ProfilePage"));
+const MasssSlots        = lazy(() => import("./features/masss/pages/SlotsPage"));
+const MasssRoutine      = lazy(() => import("./features/masss/pages/RoutinePage"));
+
+// MASSS loading fallback — dark theme matches MASSS layout
+const MasssLoader = () => (
+  <div
+    className="flex items-center justify-center h-screen"
+    style={{ background: '#F0FAF9' }}
+  >
+    <div
+      className="w-7 h-7 rounded-full border-2 masss-spin"
+      style={{ borderColor: '#C7F0EB', borderTopColor: '#0FA89E' }}
+    />
+  </div>
+)
+
+// Wrap a lazy component with Suspense
+const Lazy = ({ component: Component }) => (
+  <Suspense fallback={<MasssLoader />}>
+    <Component />
+  </Suspense>
+)
+
+
 function App() {
   return (
     <Router>
@@ -108,6 +152,62 @@ function App() {
             <Route path="notes/:id" element={<NoteDetail />} />
             <Route path="/user/exam-prep/:examId" element={<ExamPrepPage />} />
           </Route>
+
+                 {/* ── MASSS Routes ───────────────────────────────────────── */}
+          {/*
+            Structure:
+              ProtectedRoute      ← Helpmate auth (user must be logged in)
+                MasssProtectedRoute ← MASSS onboarding check
+                  MasssLayout       ← MASSS dark shell + MasssProvider
+                    child pages...
+          */}
+
+          {/* Onboarding — outside MasssLayout (no sidebar) */}
+          <Route
+            path="/masss/onboarding"
+            element={
+              <ProtectedRoute>
+                <MasssProvider>
+                  <MasssProtectedRoute>
+                    <Lazy component={MasssOnboarding} />
+                  </MasssProtectedRoute>
+                </MasssProvider>
+              </ProtectedRoute>
+            }
+          />
+
+          {/* All MASSS app pages — inside MasssLayout */}
+          {/* MasssLayout already wraps with MasssProvider internally */}
+          <Route
+            path="/masss"
+            element={
+              <ProtectedRoute>
+                <MasssProtectedRoute>
+                  <MasssLayout />
+                </MasssProtectedRoute>
+              </ProtectedRoute>
+            }
+          >
+            <Route index element={<Navigate to="/masss/dashboard" replace />} />
+            <Route path="dashboard"      element={<Lazy component={MasssDashboard} />} />
+            <Route path="schedule"       element={<Lazy component={MasssSchedule} />} />
+            <Route path="modules"        element={<Lazy component={MasssModules} />} />
+            <Route path="modules/:id"    element={<Lazy component={MasssModuleDetail} />} />
+            <Route path="tasks"          element={<Lazy component={MasssTasksPage} />} />
+            <Route path="focus"          element={<Lazy component={MassFocusPage} />} />
+            <Route path="focus/:taskId"  element={<Lazy component={MassFocusPage} />} />
+            <Route path="sessions"       element={<Lazy component={MasssSessionsPage} />} />
+            <Route path="ai-insights"    element={<Lazy component={MasssInsights} />} />
+
+            {/* Settings — nested */}
+            <Route path="settings" element={<Lazy component={MasssSettings} />}>
+              <Route index element={<Navigate to="profile" replace />} />
+              <Route path="profile" element={<Lazy component={MasssProfile} />} />
+              <Route path="slots"   element={<Lazy component={MasssSlots} />} />
+              <Route path="routine" element={<Lazy component={MasssRoutine} />} />
+            </Route>
+          </Route>
+
 
           {/* 404 Route */}
           <Route path="*" element={<NotFound />} />

@@ -1,10 +1,13 @@
   import React, { useState, useEffect } from 'react';
-  import { Link } from 'react-router-dom';
-  import { Menu, X, Sparkles, Brain } from 'lucide-react';
+ import { Link, useNavigate } from 'react-router-dom'; 
+  import { Menu, X, Sparkles, Brain, CalendarDays } from 'lucide-react';
+  import { useAuth } from '../context/AuthContext'; 
 
   const Navbar = () => {
     const [isScrolled, setIsScrolled] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+    
 
     useEffect(() => {
       const handleScroll = () => {
@@ -68,6 +71,8 @@
                 About
                 <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-teal-600 group-hover:w-full transition-all duration-300"></span>
               </Link>
+                         
+          
             </div>
 
             {/* CTA Buttons */}

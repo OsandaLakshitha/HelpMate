@@ -38,6 +38,7 @@ import {
   Calendar,
   BarChart3,
   Compass,
+   CalendarDays,
 } from 'lucide-react';
 
 const UserNavbar = () => {
@@ -125,21 +126,17 @@ const UserNavbar = () => {
         { name: 'Messages', href: '/user/messages', icon: MessageCircle, description: 'Chat with peers' },
       ]
     },
-    {
-      name: 'Wellness',
-      icon: Heart,
-      dropdown: [
-        { name: 'Overview', href: '/user/wellness', icon: Activity, description: 'Your wellness hub' },
-        { name: 'Mood Tracker', href: '/user/mood', icon: Smile, description: 'Track your mood' },
-        { name: 'Meditation', href: '/user/meditation', icon: Heart, description: 'Guided meditation' },
-        { name: 'Schedule', href: '/user/schedule', icon: Calendar, description: 'Plan your day' },
-      ]
-    },
+{
+  name: 'Study Scheduler',
+  href: '/masss/dashboard',
+  icon: CalendarDays,
+},
     {
       name: 'Files',
       href: '/user/files',
       icon: FileText,
     },
+
   ];
 
   const isActive = (href) => location.pathname === href;
@@ -336,6 +333,8 @@ const UserNavbar = () => {
                           <User className="w-5 h-5 text-slate-500" />
                           <span>My Profile</span>
                         </Link>
+                        
+
                         <Link
                           to="/user/settings"
                           onClick={() => setUserMenuOpen(false)}
@@ -343,7 +342,9 @@ const UserNavbar = () => {
                         >
                           <Settings className="w-5 h-5 text-slate-500" />
                           <span>Settings</span>
+                        
                         </Link>
+                     
                         <Link
                           to="/user/billing"
                           onClick={() => setUserMenuOpen(false)}
