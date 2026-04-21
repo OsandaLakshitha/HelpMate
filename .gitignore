@@ -41,3 +41,5 @@ ai_server/summarizer_model/**
 *.pkl
 
 backend/uploads/**
+
+models/

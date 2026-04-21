@@ -39,4 +39,4 @@ Thumbs.db
 rl_logs/
 
 # Optional: uncomment if model artifacts are generated locally
-# models/
+models/
