@@ -7,6 +7,7 @@ import { CheckSquare, Clock, Play, Filter } from 'lucide-react'
 import { PageWrapper, PageHeader, PageLoader, PageError, EmptyState } from '../components/layout/PageWrapper'
 import { useTasks }   from '../hooks/useTasks'
 import { useModules } from '../hooks/useModules'
+import { useMasss } from '../context/MasssContext'
 import { deadlineLabel } from '../utils/formatters'
 
 const STATUS_TABS = [
@@ -38,6 +39,22 @@ export default function TasksPage() {
     const mod = modules.find(m => m._id === (moduleId._id || moduleId))
     return mod?.name
   }
+
+  const { focusActive, focusSessionId, focusTaskId } = useMasss()
+
+// Replace your focus button handler with this:
+const handleFocusClick = (taskId) => {
+  if (focusActive && focusSessionId && focusTaskId !== taskId) {
+    // A different task's session is running — go to it instead of starting a new one
+    navigate(`/masss/focus/${focusTaskId}`, {
+      state: { conflictRedirect: true, attemptedTaskId: taskId },
+    })
+    // Optional: show a toast here so the user understands why
+    // toast.warning('Finish your active session first')
+    return
+  }
+  navigate(`/masss/focus/${taskId}`)
+}
 
   if (loading) return <PageLoader />
   if (error)   return <PageError message={error} onRetry={refetch} />
@@ -145,13 +162,9 @@ export default function TasksPage() {
               {/* Actions */}
               <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                 {task.status !== 'completed' && (
-                  <button
-                    onClick={() => navigate(`/masss/focus/${task._id}`)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-masss-accent text-white rounded-lg text-xs font-medium hover:opacity-90"
-                  >
-                    <Play size={12} />
-                    Focus
-                  </button>
+                <button onClick={() => handleFocusClick(task._id)}>
+  Focus
+</button>
                 )}
                 {task.status === 'pending' && (
                   <button

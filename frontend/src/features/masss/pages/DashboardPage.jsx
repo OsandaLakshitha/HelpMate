@@ -61,12 +61,12 @@ export default function DashboardPage() {
 
   return (
     <PageWrapper>
-      <PageHeader
+      {/* <PageHeader
         subtitle={`${new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}`}
-      />
+      /> */}
 
       {/* Bento grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 m-6">
 
         {/* ── Card 1: Today's Schedule ──────────────────────────── */}
         <Card className="lg:col-span-2" onClick={() => navigate('/masss/schedule')}>

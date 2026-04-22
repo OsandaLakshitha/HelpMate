@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import massApi from '../lib/massApi'
 
 export const useDashboard = () => {
-  const [summary, setsummary] = useState(null)
+const [summary, setSummary] = useState(null);
   const [health,  setHealth]  = useState(null)
   const [loading, setLoading] = useState(true)
   const [error,   setError]   = useState(null)
