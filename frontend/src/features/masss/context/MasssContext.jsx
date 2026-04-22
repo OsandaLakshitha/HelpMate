@@ -1,115 +1,137 @@
 // frontend/src/features/masss/context/MasssContext.jsx
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react'
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react'
 import massApi from '../lib/massApi'
+import { MODE } from '../components/focus/constants'
 
 const MasssContext = createContext()
 
-/**
- * useMasss — mirrors how Helpmate exposes useAuth()
- * Call this in any MASSS page or component to access shared state.
- *
- * Usage:
- *   const { sidebarCollapsed, toggleSidebar } = useMasss()
- */
 export const useMasss = () => {
   const context = useContext(MasssContext)
-  if (!context) {
-    throw new Error('useMasss must be used within a MasssProvider')
-  }
+  if (!context) throw new Error('useMasss must be used within a MasssProvider')
   return context
 }
 
 export const MasssProvider = ({ children }) => {
-
-  // ── Sidebar ───────────────────────────────────────────────────────────────
+  // ── Sidebar ──
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
 
-  // ── Onboarding ────────────────────────────────────────────────────────────
+  // ── Onboarding ──
   const [onboardingCompleted, setOnboardingCompleted] = useState(false)
-  const [onboardingLoading,   setOnboardingLoading]   = useState(true)
+  const [onboardingLoading, setOnboardingLoading] = useState(true)
 
-  // ── Dashboard summary ─────────────────────────────────────────────────────
+  // ── Dashboard ──
   const [dashboardSummary, setDashboardSummary] = useState(null)
-  const [summaryLoading,   setSummaryLoading]   = useState(false)
-  const [summaryError,     setSummaryError]     = useState(null)
+  const [summaryLoading, setSummaryLoading] = useState(false)
+  const [summaryError, setSummaryError] = useState(null)
 
-  // ── Focus timer (shared across layout so timer survives page navigation) ──
-  const [activeSession, setActiveSession] = useState(null)
-  const [focusPhase,    setFocusPhase]    = useState('idle')
-  // phases: 'idle' | 'lobby' | 'working' | 'paused' | 'rating' | 'break'
-  const [elapsed,       setElapsed]       = useState(0)
+  // ── Focus Timer Shared State with LocalStorage Persistence ──
+  const [focusMode, setFocusMode] = useState(() =>
+    localStorage.getItem('masss_mode') || MODE.LOBBY
+  )
+  const [focusSeconds, setFocusSeconds] = useState(() =>
+    Number(localStorage.getItem('masss_seconds')) || 0
+  )
+  const [focusActive, setFocusActive] = useState(() =>
+    localStorage.getItem('masss_active') === 'true'
+  )
+  const [focusTaskId, setFocusTaskId] = useState(() =>
+    localStorage.getItem('masss_taskId') || null
+  )
+  const [focusSessionId, setFocusSessionId] = useState(() =>
+    localStorage.getItem('masss_sessionId') || null
+  )
+  const [focusCompleted, setFocusCompleted] = useState(() =>
+    Number(localStorage.getItem('masss_completed')) || 0
+  )
 
-  // ── Check onboarding on mount ─────────────────────────────────────────────
+  const timerRef = useRef(null)
+
+  // ── Persistence Logic: Save to LocalStorage ──
   useEffect(() => {
-    checkOnboarding()
-  }, [])
+    localStorage.setItem('masss_mode', focusMode)
+    localStorage.setItem('masss_seconds', focusSeconds)
+    localStorage.setItem('masss_active', focusActive)
+    localStorage.setItem('masss_completed', focusCompleted)
 
+    if (focusTaskId) localStorage.setItem('masss_taskId', focusTaskId)
+    else localStorage.removeItem('masss_taskId')
+
+    if (focusSessionId) localStorage.setItem('masss_sessionId', focusSessionId)
+    else localStorage.removeItem('masss_sessionId')
+  }, [focusMode, focusSeconds, focusActive, focusTaskId, focusSessionId, focusCompleted])
+
+  // ── Timer Logic ──
+  // FIX 4 (confirmed correct): the interval only runs when mode is RUNNING or BREAK,
+  // and focusActive is true. When the user pauses (mode → MODE.PAUSED), this effect
+  // re-runs, falls into the else branch, and clears the interval immediately.
+  // The timer correctly stops on pause without any additional changes needed.
+  useEffect(() => {
+    if ((focusMode === MODE.RUNNING || focusMode === MODE.BREAK) && focusActive) {
+      timerRef.current = setInterval(() => {
+        setFocusSeconds(prev => prev + 1)
+      }, 1000)
+    } else {
+      clearInterval(timerRef.current)
+    }
+    return () => clearInterval(timerRef.current)
+  }, [focusMode, focusActive])
+
+  // ── Onboarding Logic ──
   const checkOnboarding = async () => {
     try {
       setOnboardingLoading(true)
       const data = await massApi.get('/onboarding/status')
       setOnboardingCompleted(data.onboarding_completed)
     } catch (error) {
-      console.error('[MasssContext] onboarding check error:', error.message)
-      // Fail open — do not block the user if the check fails
       setOnboardingCompleted(false)
     } finally {
       setOnboardingLoading(false)
     }
   }
 
-  // ── Dashboard summary ─────────────────────────────────────────────────────
-  const fetchDashboardSummary = useCallback(async () => {
-    try {
-      setSummaryLoading(true)
-      setSummaryError(null)
-      const data = await massApi.get('/stats/dashboard-summary')
-      setDashboardSummary(data.data)
-    } catch (error) {
-      console.error('[MasssContext] dashboard summary error:', error.message)
-      setSummaryError(error.message)
-    } finally {
-      setSummaryLoading(false)
-    }
-  }, [])
+  useEffect(() => { checkOnboarding() }, [])
 
-  // ── Sidebar helpers ───────────────────────────────────────────────────────
+  // ── Helpers ──
   const toggleSidebar = () => setSidebarCollapsed(prev => !prev)
 
-  // ── Focus timer helpers ───────────────────────────────────────────────────
-  const resetFocus = () => {
-    setActiveSession(null)
-    setFocusPhase('idle')
-    setElapsed(0)
+  // FIX 5 (confirmed correct): resetFocusTimer clears ALL focus state including
+  // focusActive → false. Called by handleCompleteTask and handleStopForNow in
+  // FocusPage, so focusActive is never left stale as true after a session ends.
+  const resetFocusTimer = () => {
+    // Clear Local Storage
+    localStorage.removeItem('masss_mode')
+    localStorage.removeItem('masss_seconds')
+    localStorage.removeItem('masss_active')
+    localStorage.removeItem('masss_taskId')
+    localStorage.removeItem('masss_sessionId')
+    localStorage.removeItem('masss_completed')
+
+    // Clear State
+    setFocusMode(MODE.LOBBY)
+    setFocusSeconds(0)
+    setFocusActive(false)
+    setFocusTaskId(null)
+    setFocusSessionId(null)
+    setFocusCompleted(0)
   }
 
-  // ── Expose everything ─────────────────────────────────────────────────────
   const value = {
-    // Sidebar
     sidebarCollapsed,
     toggleSidebar,
-
-    // Onboarding
     onboardingCompleted,
     onboardingLoading,
-    checkOnboarding,
     setOnboardingCompleted,
-
-    // Dashboard
     dashboardSummary,
     summaryLoading,
     summaryError,
-    fetchDashboardSummary,
-
-    // Focus timer
-    activeSession,
-    setActiveSession,
-    focusPhase,
-    setFocusPhase,
-    elapsed,
-    setElapsed,
-    resetFocus,
+    focusMode, setFocusMode,
+    focusSeconds, setFocusSeconds,
+    focusActive, setFocusActive,
+    focusTaskId, setFocusTaskId,
+    focusSessionId, setFocusSessionId,
+    focusCompleted, setFocusCompleted,
+    resetFocusTimer,
   }
 
   return (
