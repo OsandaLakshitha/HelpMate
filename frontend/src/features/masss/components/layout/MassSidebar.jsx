@@ -10,21 +10,28 @@ import {
 } from 'lucide-react'
 import { useMasss } from '../../context/MasssContext'
 import { useAuth }  from '../../../../context/AuthContext'
+import { MODE } from '../focus/constants'; //
+import { cn } from '../../utils/cn';
 
 // ── Nav item definitions ───────────────────────────────────────────────────
 const NAV_ITEMS = [
-  { icon: LayoutDashboard, label: 'Dashboard',   to: '/masss/dashboard'            },
-  { icon: CalendarDays,    label: 'Schedule',    to: '/masss/schedule'             },
-  { icon: BookOpen,        label: 'Modules',     to: '/masss/modules'              },
-  { icon: CheckSquare,     label: 'Tasks',       to: '/masss/tasks'                },
-  { icon: Timer,           label: 'Focus',       to: '/masss/focus', highlight: true },
-  { icon: History,         label: 'Sessions',    to: '/masss/sessions'             },
-  { icon: Brain,           label: 'AI Insights', to: '/masss/ai-insights'          },
-  { icon: Settings,        label: 'Settings',    to: '/masss/settings'             },
+  { icon: LayoutDashboard, label: 'Dashboard',   to: '/masss/dashboard'   },
+  { icon: CalendarDays,    label: 'Schedule',    to: '/masss/schedule'    },
+  { icon: BookOpen,        label: 'Modules',     to: '/masss/modules'     },
+  { icon: CheckSquare,     label: 'Tasks',       to: '/masss/tasks'       },
+  { icon: Timer,           label: 'Focus',       to: '/masss/focus', highlight: true, showActive: true },
+  { icon: History,         label: 'Sessions',    to: '/masss/sessions'    },
+  { icon: Brain,           label: 'AI Insights', to: '/masss/ai-insights' },
+  { icon: Settings,        label: 'Settings',    to: '/masss/settings'    },
 ]
 
 // ── Single nav link ────────────────────────────────────────────────────────
+
 const NavItem = ({ item, collapsed }) => {
+  const { focusMode, focusActive } = useMasss()
+  const isTimerActive = item.showActive && focusActive &&
+    [MODE.RUNNING, MODE.PAUSED, MODE.BREAK].includes(focusMode)
+
   return (
     <NavLink
       to={item.to}
@@ -39,13 +46,8 @@ const NavItem = ({ item, collapsed }) => {
     >
       {({ isActive }) => (
         <>
-          {/* Icon */}
-          <item.icon
-            size={16}
-            className="shrink-0 text-masss-accent"
-          />
+          <item.icon size={16} className="shrink-0 text-masss-accent" />
 
-          {/* Label — hidden when collapsed */}
           <AnimatePresence initial={false}>
             {!collapsed && (
               <motion.span
@@ -60,21 +62,19 @@ const NavItem = ({ item, collapsed }) => {
             )}
           </AnimatePresence>
 
-          {/* Sparkle for Focus when active */}
-          {item.highlight && isActive && !collapsed && (
-            <Sparkles size={11} className="text-masss-accent shrink-0" />
+          {/* Active session pulse dot */}
+          {isTimerActive && !collapsed && (
+            <span className={cn(
+              'w-2 h-2 rounded-full shrink-0',
+              focusMode === MODE.RUNNING ? 'bg-masss-accent animate-pulse' : 'bg-amber-400',
+            )} />
           )}
 
-          {/* Tooltip — visible on hover when collapsed */}
+          {/* Collapsed tooltip */}
           {collapsed && (
-            <div className="
-              absolute left-[calc(100%+10px)] top-1/2 -translate-y-1/2
-              bg-masss-heading border border-masss-mint rounded-md
-              px-2.5 py-1 text-xs text-masss-bg whitespace-nowrap
-              z-50 pointer-events-none
-              opacity-0 group-hover:opacity-100 transition-opacity duration-150
-            ">
+            <div className="absolute left-[calc(100%+10px)] top-1/2 -translate-y-1/2 bg-masss-heading border border-masss-mint rounded-md px-2.5 py-1 text-xs text-masss-bg whitespace-nowrap z-50 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-150">
               {item.label}
+              {isTimerActive && ' ●'}
             </div>
           )}
         </>
