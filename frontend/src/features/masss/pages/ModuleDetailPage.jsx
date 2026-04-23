@@ -11,6 +11,7 @@ import { PageWrapper, PageLoader, PageError } from '../components/layout/PageWra
 import { useModule } from '../hooks/useModule'
 import { useTasks }  from '../hooks/useTasks'
 import { deadlineLabel } from '../utils/formatters'
+import massApi from '../lib/massApi'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -18,6 +19,15 @@ const PRIORITY_OPTIONS = [
   { value: 'high',   label: 'High' },
   { value: 'medium', label: 'Medium' },
   { value: 'low',    label: 'Low' },
+]
+
+const EXAM_TYPE_OPTIONS = [
+  { value: 'final',        label: 'Final Exam' },
+  { value: 'midterm',      label: 'Midterm' },
+  { value: 'quiz',         label: 'Quiz' },
+  { value: 'assignment',   label: 'Assignment' },
+  { value: 'presentation', label: 'Presentation' },
+  { value: 'other',        label: 'Other' },
 ]
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -157,6 +167,121 @@ const TaskRow = ({ task, onFocus, onArchive }) => {
           <Trash2 size={13} />
         </button>
       )}
+    </div>
+  )
+}
+
+// ── Create Exam Modal ─────────────────────────────────────────────────────────
+
+const EMPTY_EXAM = { name: '', exam_type: 'quiz', due_date: '', weight: 10 }
+
+const CreateExamModal = ({ open, onClose, onSubmit, submitting }) => {
+  const [form, setForm] = useState(EMPTY_EXAM)
+
+  const set = (field, value) => setForm(p => ({ ...p, [field]: value }))
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    await onSubmit(form)
+    setForm(EMPTY_EXAM)
+  }
+
+  if (!open) return null
+
+  return (
+    <div
+      className="fixed inset-0 bg-masss-heading/30 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ scale: 0.95, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.95, opacity: 0 }}
+        className="bg-masss-white rounded-2xl p-6 w-full max-w-sm border border-masss-mint shadow-xl"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between mb-5">
+          <div>
+            <h2 className="text-lg font-bold text-masss-heading">Add Exam</h2>
+            <p className="text-xs text-masss-heading/50 mt-0.5">Attach an exam to this module.</p>
+          </div>
+          <button onClick={onClose} className="text-masss-heading/40 hover:text-masss-heading">
+            <X size={18} />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-3">
+          {/* Exam name */}
+          <div>
+            <label className="text-xs font-semibold text-masss-heading/60 mb-1.5 block">Exam name *</label>
+            <input
+              type="text"
+              placeholder="e.g. Midterm Paper"
+              value={form.name}
+              onChange={e => set('name', e.target.value)}
+              className="w-full px-3 py-2.5 rounded-lg border border-masss-mint text-sm text-masss-heading bg-masss-bg focus:outline-none focus:border-masss-accent placeholder:text-masss-heading/30"
+              required
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            {/* Type */}
+            <div>
+              <label className="text-xs font-semibold text-masss-heading/60 mb-1.5 block">Type</label>
+              <select
+                value={form.exam_type}
+                onChange={e => set('exam_type', e.target.value)}
+                className="w-full px-3 py-2 rounded-lg border border-masss-mint text-sm text-masss-heading bg-masss-bg focus:outline-none focus:border-masss-accent"
+              >
+                {EXAM_TYPE_OPTIONS.map(o => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Weight */}
+            <div>
+              <label className="text-xs font-semibold text-masss-heading/60 mb-1.5 block">Weight %</label>
+              <input
+                type="number"
+                min={1} max={100}
+                value={form.weight}
+                onChange={e => set('weight', Number(e.target.value))}
+                className="w-full px-3 py-2 rounded-lg border border-masss-mint text-sm text-masss-heading bg-masss-bg focus:outline-none focus:border-masss-accent"
+              />
+            </div>
+          </div>
+
+          {/* Due date */}
+          <div>
+            <label className="text-xs font-semibold text-masss-heading/60 mb-1.5 block">Due date *</label>
+            <input
+              type="date"
+              value={form.due_date}
+              onChange={e => set('due_date', e.target.value)}
+              className="w-full px-3 py-2 rounded-lg border border-masss-mint text-sm text-masss-heading bg-masss-bg focus:outline-none focus:border-masss-accent"
+              required
+            />
+          </div>
+
+          <div className="flex gap-3 pt-1">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 py-2.5 rounded-lg border border-masss-mint text-masss-heading/60 text-sm hover:bg-masss-bg transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={submitting || !form.name.trim() || !form.due_date}
+              className="flex-1 py-2.5 rounded-lg bg-masss-accent text-white text-sm font-semibold disabled:opacity-40 hover:opacity-90 transition-opacity"
+            >
+              {submitting ? 'Adding…' : 'Add Exam'}
+            </button>
+          </div>
+        </form>
+      </motion.div>
     </div>
   )
 }
@@ -352,6 +477,7 @@ export default function ModuleDetailPage() {
 
   const [activeTab,      setActiveTab]      = useState('tasks')
   const [createTaskOpen, setCreateTaskOpen] = useState(false)
+  const [createExamOpen, setCreateExamOpen] = useState(false)
   const [submitting,     setSubmitting]     = useState(false)
 
   // ── Handlers ──────────────────────────────────────────────────────────────
@@ -372,6 +498,22 @@ export default function ModuleDetailPage() {
         exam_id: form.exam_id || undefined,
       })
       setCreateTaskOpen(false)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const handleCreateExam = async (form) => {
+    try {
+      setSubmitting(true)
+      await massApi.post(`/exams/module/${id}`, {
+        name:      form.name,
+        exam_type: form.exam_type,
+        due_date:  form.due_date,
+        weight:    form.weight,
+      })
+      await mRefetch()   // reload module so exams list updates
+      setCreateExamOpen(false)
     } finally {
       setSubmitting(false)
     }
@@ -402,7 +544,7 @@ export default function ModuleDetailPage() {
     <PageWrapper>
 
       {/* ── Header ───────────────────────────────────────────────────────── */}
-      <div className="flex items-center gap-3 mb-6">
+      <div className="flex items-center gap-3 m-6">
         <button
           onClick={() => navigate('/masss/modules')}
           className="p-2 rounded-lg border border-masss-mint text-masss-heading/60 hover:bg-masss-bg transition-colors"
@@ -434,10 +576,21 @@ export default function ModuleDetailPage() {
             Add Task
           </button>
         )}
+
+        {/* Add Exam button — only on exams tab */}
+        {activeTab === 'exams' && (
+          <button
+            onClick={() => setCreateExamOpen(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-masss-accent text-white rounded-lg text-sm font-medium hover:opacity-90 transition-opacity shrink-0"
+          >
+            <Plus size={14} />
+            Add Exam
+          </button>
+        )}
       </div>
 
       {/* ── Tabs ─────────────────────────────────────────────────────────── */}
-      <div className="flex gap-1 p-1 bg-masss-bg border border-masss-mint rounded-xl mb-5">
+      <div className="flex gap-1 p-1 bg-masss-bg border border-masss-mint rounded-xl m-6">
         {tabs.map(tab => (
           <button
             key={tab.id}
@@ -466,7 +619,7 @@ export default function ModuleDetailPage() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.2 }}
-            className="space-y-5"
+            className="space-y-5 m-6"
           >
             {!taskList.length ? (
               <div className="p-8 text-center bg-masss-white border border-masss-mint rounded-2xl">
@@ -528,15 +681,21 @@ export default function ModuleDetailPage() {
             transition={{ duration: 0.2 }}
           >
             {exams.length === 0 ? (
-              <div className="p-8 text-center bg-masss-white border border-masss-mint rounded-2xl">
+              <div className="p-8 text-center bg-masss-white border border-masss-mint rounded-2xl m-6">
                 <Calendar size={22} className="mx-auto mb-3 text-masss-heading/20" />
                 <p className="text-sm font-medium text-masss-heading/40 mb-1">No exams scheduled</p>
-                <p className="text-xs text-masss-heading/30">
-                  Exams can be added when creating a module.
+                <p className="text-xs text-masss-heading/30 mb-4">
+                  Add an exam using the button above.
                 </p>
+                <button
+                  onClick={() => setCreateExamOpen(true)}
+                  className="px-4 py-2 bg-masss-accent text-white text-sm rounded-lg hover:opacity-90"
+                >
+                  Add Exam
+                </button>
               </div>
             ) : (
-              <div className="bg-masss-white border border-masss-mint rounded-2xl overflow-hidden divide-y divide-masss-mint">
+              <div className="bg-masss-white border border-masss-mint rounded-2xl overflow-hidden divide-y divide-masss-mint m-6">
                 {exams.map(ex => (
                   <ExamCard key={ex._id} exam={ex} />
                 ))}
@@ -556,6 +715,18 @@ export default function ModuleDetailPage() {
             onSubmit={handleCreateTask}
             submitting={submitting}
             exams={exams}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* ── Create Exam Modal ─────────────────────────────────────────────── */}
+      <AnimatePresence>
+        {createExamOpen && (
+          <CreateExamModal
+            open={createExamOpen}
+            onClose={() => setCreateExamOpen(false)}
+            onSubmit={handleCreateExam}
+            submitting={submitting}
           />
         )}
       </AnimatePresence>

@@ -190,19 +190,7 @@ export default function ModulesPage() {
 
   return (
     <PageWrapper>
-      <PageHeader
-        title="Modules"
-        subtitle={`${modules.length} subject${modules.length !== 1 ? 's' : ''}`}
-        action={
-          <button
-            onClick={() => setShowModal(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-masss-accent text-white rounded-lg text-sm font-medium hover:opacity-90 transition-opacity"
-          >
-            <Plus size={15} />
-            New Module
-          </button>
-        }
-      />
+     
 
       {modules.length === 0 ? (
         <EmptyState
@@ -219,7 +207,7 @@ export default function ModulesPage() {
           }
         />
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 m-6">
           {modules.map((mod, i) => (
             <ModuleCard
               key={mod._id}
