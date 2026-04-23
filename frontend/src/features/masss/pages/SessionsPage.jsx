@@ -23,8 +23,8 @@ export default function SessionsPage() {
   return (
     <PageWrapper>
       <PageHeader
-        title="Sessions"
-        subtitle="Your study history"
+        // title="Sessions"
+        // subtitle="Your study history"
       />
 
       {sessions.length === 0 ? (

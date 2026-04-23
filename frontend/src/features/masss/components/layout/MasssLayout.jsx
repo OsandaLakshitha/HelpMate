@@ -23,7 +23,7 @@ const MasssLayoutInner = () => {
         {/* Hide TopBar if focus is active to match your "Pure" focus requirement */}
  <MassTopBar />
 
-        <main className="flex-1 overflow-y-auto masss-scroll bg-masss-bg">
+        <main className="flex-1 overflow-y-auto masss-scroll bg-masss-bg m-10">
           <div>
             <Outlet />
           </div>

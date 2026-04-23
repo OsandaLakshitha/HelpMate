@@ -1,14 +1,14 @@
-// frontend/src/features/masss/pages/TasksPage.jsx
+// src/features/masss/pages/TasksPage.jsx
 
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { motion } from 'framer-motion'
-import { CheckSquare, Clock, Play, Filter } from 'lucide-react'
+import { CheckSquare, Plus } from 'lucide-react'
 import { PageWrapper, PageHeader, PageLoader, PageError, EmptyState } from '../components/layout/PageWrapper'
 import { useTasks }   from '../hooks/useTasks'
 import { useModules } from '../hooks/useModules'
-import { useMasss } from '../context/MasssContext'
-import { deadlineLabel } from '../utils/formatters'
+import { useMasss }   from '../context/MasssContext'
+import { TaskList }        from '../components/tasks/TaskList'
+import { CreateTaskModal } from '../components/tasks/CreateTaskModal'
 
 const STATUS_TABS = [
   { id: '',            label: 'All'         },
@@ -17,51 +17,73 @@ const STATUS_TABS = [
   { id: 'completed',   label: 'Completed'   },
 ]
 
-const PRIORITY_BADGE = {
-  high:   'bg-red-100 text-red-600',
-  medium: 'bg-amber-100 text-amber-600',
-  low:    'bg-masss-mint text-masss-accent',
-}
-
 export default function TasksPage() {
-  const navigate                   = useNavigate()
-  const [statusFilter, setStatus]  = useState('')
-  const [priorityFilter, setPriority] = useState('')
+  const navigate = useNavigate()
 
-  const { tasks, loading, error, updateTask, archiveTask, refetch } = useTasks({
+  const [statusFilter,   setStatus]   = useState('')
+  const [priorityFilter, setPriority] = useState('')
+  const [createOpen,     setCreateOpen] = useState(false)
+  const [submitting,     setSubmitting] = useState(false)
+
+  const { tasks, loading, error, updateTask, archiveTask, createTask, refetch } = useTasks({
     status:   statusFilter   || undefined,
     priority: priorityFilter || undefined,
   })
   const { modules } = useModules()
 
+  const { focusActive, focusSessionId, focusTaskId } = useMasss()
+
   const getModuleName = (moduleId) => {
     if (!moduleId) return null
     const mod = modules.find(m => m._id === (moduleId._id || moduleId))
-    return mod?.name
+    return mod?.name || null
   }
 
-  const { focusActive, focusSessionId, focusTaskId } = useMasss()
-
-// Replace your focus button handler with this:
-const handleFocusClick = (taskId) => {
-  if (focusActive && focusSessionId && focusTaskId !== taskId) {
-    // A different task's session is running — go to it instead of starting a new one
-    navigate(`/masss/focus/${focusTaskId}`, {
-      state: { conflictRedirect: true, attemptedTaskId: taskId },
-    })
-    // Optional: show a toast here so the user understands why
-    // toast.warning('Finish your active session first')
-    return
+  const handleFocusClick = (taskId) => {
+    if (focusActive && focusSessionId && focusTaskId !== taskId) {
+      navigate(`/masss/focus/${focusTaskId}`, {
+        state: { conflictRedirect: true, attemptedTaskId: taskId },
+      })
+      return
+    }
+    navigate(`/masss/focus/${taskId}`)
   }
-  navigate(`/masss/focus/${taskId}`)
-}
+
+  const handleCreateTask = async (form) => {
+    try {
+      setSubmitting(true)
+      await createTask({
+        name:                form.name,
+        description:         form.description || undefined,
+        priority:            form.priority,
+        difficulty:          form.difficulty,
+        estimated_pomodoros: form.estimated_pomodoros,
+        deadline:            form.deadline ? new Date(form.deadline).toISOString() : undefined,
+      })
+      setCreateOpen(false)
+    } finally {
+      setSubmitting(false)
+    }
+  }
 
   if (loading) return <PageLoader />
   if (error)   return <PageError message={error} onRetry={refetch} />
 
   return (
     <PageWrapper>
-      <PageHeader title="Tasks" subtitle="All tasks across modules" />
+      <PageHeader
+        // title="Tasks"
+        // subtitle="All tasks across modules"
+        action={
+          <button
+            onClick={() => setCreateOpen(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-masss-accent text-white rounded-lg text-sm font-medium hover:opacity-90 transition-opacity"
+          >
+            <Plus size={15} />
+            New Task
+          </button>
+        }
+      />
 
       {/* Filters */}
       <div className="flex items-center gap-2 mb-6 flex-wrap">
@@ -93,7 +115,7 @@ const handleFocusClick = (taskId) => {
           >
             All
           </button>
-          {['high','medium','low'].map(p => (
+          {['high', 'medium', 'low'].map(p => (
             <button
               key={p}
               onClick={() => setPriority(p)}
@@ -107,6 +129,7 @@ const handleFocusClick = (taskId) => {
         </div>
       </div>
 
+      {/* Task list */}
       {tasks.length === 0 ? (
         <EmptyState
           icon={<CheckSquare size={32} />}
@@ -114,71 +137,22 @@ const handleFocusClick = (taskId) => {
           subtitle="Try a different filter or add tasks from a module"
         />
       ) : (
-        <div className="space-y-2">
-          {tasks.map((task, i) => (
-            <motion.div
-              key={task._id}
-              initial={{ opacity: 0, y: 4 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.03 }}
-              className="flex items-center gap-4 p-4 bg-masss-white border border-masss-mint rounded-xl group hover:border-masss-accent transition-colors"
-            >
-              {/* Status indicator */}
-              <div className={[
-                'w-2.5 h-2.5 rounded-full shrink-0',
-                task.status === 'completed'  ? 'bg-masss-accent'   :
-                task.status === 'in_progress' ? 'bg-amber-400 animate-pulse' :
-                'bg-masss-mint border border-masss-accent',
-              ].join(' ')} />
-
-              {/* Content */}
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1">
-                  <p className={`text-sm font-medium truncate ${
-                    task.status === 'completed' ? 'text-masss-heading/40 line-through' : 'text-masss-heading'
-                  }`}>
-                    {task.name}
-                  </p>
-                </div>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${PRIORITY_BADGE[task.priority] || ''}`}>
-                    {task.priority}
-                  </span>
-                  {getModuleName(task.moduleId) && (
-                    <span className="text-xs text-masss-heading/40">{getModuleName(task.moduleId)}</span>
-                  )}
-                  <span className="text-xs text-masss-heading/40">
-                    {task.sessionsCount}/{task.estimatedPomodoros} pomos
-                  </span>
-                  {task.deadline && (
-                    <span className="flex items-center gap-1 text-xs text-masss-heading/40">
-                      <Clock size={10} />
-                      {deadlineLabel(task.deadline)}
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              {/* Actions */}
-              <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                {task.status !== 'completed' && (
-                <button onClick={() => handleFocusClick(task._id)}>
-  Focus
-</button>
-                )}
-                {task.status === 'pending' && (
-                  <button
-                    onClick={() => updateTask(task._id, { status: 'completed' })}
-                    className="px-3 py-1.5 bg-masss-bg border border-masss-mint text-masss-heading/60 rounded-lg text-xs hover:bg-masss-mint transition-colors"
-                  >
-                    Done
-                  </button>
-                )}
-              </div>
-            </motion.div>
-          ))}
-        </div>
+        <TaskList
+          tasks={tasks}
+          variant="page"
+          onFocus={handleFocusClick}
+          onComplete={(taskId, payload) => updateTask(taskId, payload)}
+          getModuleName={getModuleName}
+        />
       )}
+
+      {/* Create Task Modal */}
+      <CreateTaskModal
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+        onSubmit={handleCreateTask}
+        submitting={submitting}
+      />
     </PageWrapper>
   )
 }
