@@ -5,15 +5,16 @@ import { motion } from 'framer-motion'
 import { X } from 'lucide-react'
 import { PRIORITY_OPTIONS } from './taskConstants'
 
-export const EditTaskModal = ({ open, task, onClose, onSave, submitting }) => {
-  const [form, setForm] = useState({
-    name:                '',
-    description:         '',
-    priority:            'medium',
-    difficulty:          3,
-    estimated_pomodoros: 2,
-    deadline:            '',
-  })
+export const EditTaskModal = ({ open, task, onClose, onSave,exams, submitting }) => {
+const [form, setForm] = useState({
+  name:                '',
+  description:         '',
+  priority:            'medium',
+  difficulty:          3,
+  estimated_pomodoros: 2,
+  deadline:            '',
+  exam_id:             '',
+})
 
   // Pre-populate whenever a different task is passed in
   useEffect(() => {
@@ -28,6 +29,7 @@ export const EditTaskModal = ({ open, task, onClose, onSave, submitting }) => {
       deadline: task.deadline
         ? new Date(task.deadline).toISOString().slice(0, 16)
         : '',
+        exam_id: task.examId || task.exam_id || '',
     })
   }, [task])
 
@@ -44,6 +46,7 @@ export const EditTaskModal = ({ open, task, onClose, onSave, submitting }) => {
       deadline:            form.deadline
         ? new Date(form.deadline).toISOString()
         : undefined,
+        exam_id:             form.exam_id || undefined,
     })
   }
 
@@ -163,7 +166,25 @@ export const EditTaskModal = ({ open, task, onClose, onSave, submitting }) => {
                 className="w-full px-3 py-2 rounded-lg border border-masss-mint text-sm text-masss-heading bg-masss-bg focus:outline-none focus:border-masss-accent"
               />
             </div>
+
+           
           </div>
+
+ {exams?.length > 0 && (
+            <div>
+              <label className="text-xs font-semibold text-masss-heading/60 mb-1.5 block">Link to exam</label>
+              <select
+                value={form.exam_id}
+                onChange={e => set('exam_id', e.target.value)}
+                className="w-full px-3 py-2 rounded-lg border border-masss-mint text-sm text-masss-heading bg-masss-bg focus:outline-none focus:border-masss-accent"
+              >
+                <option value="">No exam link</option>
+                {exams.map(ex => (
+                  <option key={ex._id} value={ex._id}>{ex.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <div className="flex gap-3 pt-1">
             <button

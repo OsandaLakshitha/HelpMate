@@ -232,6 +232,7 @@ const { tasks, loading: tLoading, createTask, updateTask, archiveTask } = useTas
   onClose={() => setEditingTask(null)}
   onSave={handleEditTask}
   submitting={submitting}
+   exams={exams}
 />
 
     </PageWrapper>
