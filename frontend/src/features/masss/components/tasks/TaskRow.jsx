@@ -1,9 +1,11 @@
 // src/features/masss/components/tasks/TaskRow.jsx
 
 import React, { useState, useRef, useEffect } from 'react'
+
+
 import {
   CheckCircle, RotateCcw,
-  MoreHorizontal, Pencil, Trash2,
+  MoreHorizontal, Pencil, Trash2, AlertTriangle,
 } from 'lucide-react'
 
 const PRIORITY_PILL_CLASSES = {
@@ -14,6 +16,7 @@ const PRIORITY_PILL_CLASSES = {
 
 export const TaskRow = ({ task, onFocus, onComplete, onArchive, onEdit, moduleName }) => {
   const [menuOpen, setMenuOpen] = useState(false)
+  const [confirmOpen, setConfirmOpen] = useState(false)
   const menuRef = useRef(null)
 
   const isCompleted = task.status === 'completed'
@@ -99,22 +102,61 @@ export const TaskRow = ({ task, onFocus, onComplete, onArchive, onEdit, moduleNa
               )}
 
 
-              {/* Delete (= archive) — available on any non-archived task */}
-              {task.status !== 'archived' && (
-                <>
-                  <div className="h-px bg-masss-mint mx-2" />
-                  <button
-                    onClick={() => { onArchive(task._id); setMenuOpen(false) }}
-                    className="flex items-center gap-2.5 w-full px-3 py-2.5 text-sm text-red-500 hover:bg-red-50 transition-colors"
-                  >
-                    <Trash2 size={13} />
-                    Delete
-                  </button>
-                </>
-              )}
+             {/* Delete — opens confirm dialog */}
+{task.status !== 'archived' && (
+  <>
+    <div className="h-px bg-masss-mint mx-2" />
+    <button
+      onClick={() => { setConfirmOpen(true); setMenuOpen(false) }}
+      className="flex items-center gap-2.5 w-full px-3 py-2.5 text-sm text-red-500 hover:bg-red-50 transition-colors"
+    >
+      <Trash2 size={13} />
+      Delete
+    </button>
+  </>
+)}
 
             </div>
           )}
+
+          {/* Confirm delete dialog */}
+{confirmOpen && (
+  <div
+    className="fixed inset-0 bg-masss-heading/30 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+    onClick={() => setConfirmOpen(false)}
+  >
+    <div
+      className="bg-masss-white border border-masss-mint rounded-2xl p-6 w-full max-w-sm shadow-xl text-center"
+      onClick={e => e.stopPropagation()}
+    >
+      <div className="flex justify-center mb-4">
+        <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center">
+          <AlertTriangle size={22} className="text-red-500" />
+        </div>
+      </div>
+      <h3 className="text-base font-bold text-masss-heading mb-1">
+        Delete "{task.name}"?
+      </h3>
+      <p className="text-xs text-masss-heading/50 mb-6 leading-relaxed">
+        This task will be archived and removed from your active list
+      </p>
+      <div className="flex gap-3">
+        <button
+          onClick={() => setConfirmOpen(false)}
+          className="flex-1 py-2.5 rounded-xl border border-masss-mint text-masss-heading/60 text-sm font-medium hover:bg-masss-bg transition-colors"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={() => { onArchive(task._id); setConfirmOpen(false) }}
+          className="flex-1 py-2.5 rounded-xl bg-red-500 text-white text-sm font-semibold hover:bg-red-600 transition-colors"
+        >
+          Yes, Delete
+        </button>
+      </div>
+    </div>
+  </div>
+)}
         </div>
 
       </div>
