@@ -2,38 +2,22 @@
 
 import React from 'react'
 import { motion } from 'framer-motion'
-import { CheckCircle, CheckSquare } from 'lucide-react'
+import { CheckCircle } from 'lucide-react'
 import { TaskRow } from './TaskRow'
-
-// ── TaskList ──────────────────────────────────────────────────────────────────
-// variant="module" → divided list inside a single card (ModuleDetailPage)
-// variant="page"   → space-y-2 of standalone cards (TasksPage)
 
 export const TaskList = ({
   tasks,
-  variant     = 'module',
-
-  // Callbacks
   onFocus,
-  onArchive,      // module variant
-  onComplete,     // page variant
-  getModuleName,  // page variant — fn(moduleId) → string | null
-
-  // Empty state
-  onAddClick,     // optional — shows Add Task button in empty state (module variant)
+  onComplete,
+  onArchive,
+  getModuleName,  // optional — fn(moduleId) → string | null
+  onAddClick,     // optional — shows Add Task button in empty state
   emptyTitle    = 'No tasks yet',
-  emptySubtitle = 'Add your first task for this module.',
+  emptySubtitle = 'Add your first task.',
 }) => {
 
   // ── Empty state ─────────────────────────────────────────────────────────────
   if (!tasks || tasks.length === 0) {
-    if (variant === 'page') {
-      // TasksPage uses its own EmptyState component — return null and let the
-      // page render it. TasksPage already conditionally renders EmptyState before
-      // calling TaskList, so this branch is a safe fallback.
-      return null
-    }
-
     return (
       <div className="p-8 text-center bg-masss-white border border-masss-mint rounded-2xl">
         <CheckCircle size={22} className="mx-auto mb-3 text-masss-heading/20" />
@@ -51,30 +35,7 @@ export const TaskList = ({
     )
   }
 
-  // ── Module variant: rows inside a single divided card ───────────────────────
-  if (variant === 'module') {
-    return (
-      <div className="bg-masss-white border border-masss-mint rounded-2xl overflow-hidden divide-y divide-masss-mint">
-        {tasks.map((task, i) => (
-          <motion.div
-            key={task._id}
-            initial={{ opacity: 0, y: 4 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.04 }}
-          >
-            <TaskRow
-              task={task}
-              variant="module"
-              onFocus={onFocus}
-              onArchive={onArchive}
-            />
-          </motion.div>
-        ))}
-      </div>
-    )
-  }
-
-  // ── Page variant: each task is its own card ─────────────────────────────────
+  // ── Task list ────────────────────────────────────────────────────────────────
   return (
     <div className="space-y-2">
       {tasks.map((task, i) => (
@@ -86,9 +47,9 @@ export const TaskList = ({
         >
           <TaskRow
             task={task}
-            variant="page"
             onFocus={onFocus}
             onComplete={onComplete}
+            onArchive={onArchive}
             moduleName={getModuleName ? getModuleName(task.moduleId) : null}
           />
         </motion.div>

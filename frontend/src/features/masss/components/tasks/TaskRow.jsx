@@ -1,185 +1,123 @@
 // src/features/masss/components/tasks/TaskRow.jsx
 
-import React from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import {
-  CheckCircle, Timer, Circle,
-  Play, Trash2, Clock,
+  CheckCircle, Circle,
+  RotateCcw, MoreHorizontal, Archive,
 } from 'lucide-react'
-import { deadlineLabel } from '../../utils/formatters'
-import { PRIORITY_CLASSES, PRIORITY_BADGE, daysUntilFromDate } from './taskConstants'
+import { PRIORITY_BADGE } from './taskConstants'
 
-// ── Module variant ────────────────────────────────────────────────────────────
-// Used in ModuleDetailPage: rows inside a divided list card.
-// Shows lucide status icon, focus + archive on hover.
-
-const ModuleTaskRow = ({ task, onFocus, onArchive }) => {
-  const daysLeft = daysUntilFromDate(task.deadline)
-
-  const deadlineColour =
-    daysLeft === null ? '' :
-    daysLeft < 0      ? 'text-red-500'   :
-    daysLeft <= 3     ? 'text-red-500'   :
-    daysLeft <= 7     ? 'text-amber-500' :
-    'text-masss-heading/40'
-
-  const isActionable = task.status !== 'completed' && task.status !== 'archived'
-
-  const StatusIcon =
-    task.status === 'completed'   ? CheckCircle :
-    task.status === 'in_progress' ? Timer       :
-    Circle
-
-  const statusIconColour =
-    task.status === 'completed'   ? 'text-masss-accent'  :
-    task.status === 'in_progress' ? 'text-masss-accent'  :
-    'text-masss-heading/30'
-
-  return (
-    <div className="flex items-center gap-3 px-4 py-3 hover:bg-masss-bg transition-colors group">
-      <StatusIcon size={15} className={`shrink-0 ${statusIconColour}`} />
-
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className={`text-sm font-medium truncate ${
-            task.status === 'completed'
-              ? 'text-masss-heading/40 line-through'
-              : 'text-masss-heading'
-          }`}>
-            {task.name}
-          </span>
-          <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
-            PRIORITY_CLASSES[task.priority] || PRIORITY_CLASSES.medium
-          }`}>
-            {task.priority}
-          </span>
-        </div>
-
-        <div className="flex items-center gap-3 mt-0.5 flex-wrap">
-          <span className="text-xs text-masss-heading/40 flex items-center gap-1">
-            <Timer size={10} />
-            {task.sessionsCount || 0}/{task.estimatedPomodoros || 0} pomos
-          </span>
-          {task.deadline && (
-            <span className={`text-xs flex items-center gap-1 ${deadlineColour}`}>
-              <Clock size={10} />
-              {deadlineLabel(task.deadline)}
-            </span>
-          )}
-        </div>
-      </div>
-
-      {isActionable && (
-        <button
-          onClick={() => onFocus(task._id)}
-          className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg bg-masss-accent/10 text-masss-accent hover:bg-masss-accent hover:text-white transition-all"
-          title="Start focus session"
-        >
-          <Play size={13} fill="currentColor" />
-        </button>
-      )}
-
-      {isActionable && (
-        <button
-          onClick={() => onArchive(task._id)}
-          className="opacity-0 group-hover:opacity-100 p-1.5 text-masss-heading/30 hover:text-red-500 transition-all"
-          title="Archive task"
-        >
-          <Trash2 size={13} />
-        </button>
-      )}
-    </div>
-  )
+const PRIORITY_PILL_CLASSES = {
+  high:   'border border-red-200 text-red-500',
+  medium: 'border border-masss-mint text-masss-heading/60',
+  low:    'border border-masss-mint text-masss-heading/40',
 }
 
-// ── Page variant ──────────────────────────────────────────────────────────────
-// Used in TasksPage: each task is a standalone card with border + hover effect.
-// Shows dot status indicator, module name, focus + done on hover.
+export const TaskRow = ({ task, onFocus, onComplete, onArchive, moduleName }) => {
+  const [menuOpen, setMenuOpen] = useState(false)
+  const menuRef = useRef(null)
 
-const PageTaskRow = ({ task, onFocus, onComplete, moduleName }) => {
+  const isCompleted = task.status === 'completed'
+
+  // Close menu on outside click
+  useEffect(() => {
+    if (!menuOpen) return
+    const handler = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) {
+        setMenuOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [menuOpen])
+
   return (
-    <div className="flex items-center gap-4 p-4 bg-masss-white border border-masss-mint rounded-xl group hover:border-masss-accent transition-colors">
-      {/* Status dot */}
-      <div className={[
-        'w-2.5 h-2.5 rounded-full shrink-0',
-        task.status === 'completed'   ? 'bg-masss-accent'                          :
-        task.status === 'in_progress' ? 'bg-amber-400 animate-pulse'              :
-        'bg-masss-mint border border-masss-accent',
-      ].join(' ')} />
+    <div className="flex items-center gap-4 px-4 py-3.5 bg-masss-white border border-masss-mint rounded-xl hover:border-masss-accent/40 transition-colors">
 
-      {/* Content */}
+      {/* ── Left: name + meta ──────────────────────────────────────────── */}
       <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 mb-1">
-          <p className={`text-sm font-medium truncate ${
-            task.status === 'completed'
-              ? 'text-masss-heading/40 line-through'
-              : 'text-masss-heading'
-          }`}>
-            {task.name}
-          </p>
-        </div>
+
+        {/* Task name */}
+        <p className={`text-sm font-semibold mb-1.5 truncate ${
+          isCompleted ? 'text-masss-heading/40 line-through' : 'text-masss-heading'
+        }`}>
+          {task.name}
+        </p>
+
+        {/* Meta row */}
         <div className="flex items-center gap-2 flex-wrap">
-          <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
-            PRIORITY_BADGE[task.priority] || ''
+
+          {/* Priority pill */}
+          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide bg-transparent ${
+            PRIORITY_PILL_CLASSES[task.priority] || PRIORITY_PILL_CLASSES.medium
           }`}>
             {task.priority}
           </span>
-          {moduleName && (
-            <span className="text-xs text-masss-heading/40">{moduleName}</span>
-          )}
+
+          {/* Sessions count */}
           <span className="text-xs text-masss-heading/40">
-            {task.sessionsCount || 0}/{task.estimatedPomodoros || 0} pomos
+            Sessions {task.sessionsCount || 0}
           </span>
-          {task.deadline && (
-            <span className="flex items-center gap-1 text-xs text-masss-heading/40">
-              <Clock size={10} />
-              {deadlineLabel(task.deadline)}
-            </span>
+
+          {/* Module name */}
+          {moduleName && (
+            <span className="text-xs text-masss-heading/30">· {moduleName}</span>
           )}
+
         </div>
       </div>
 
-      {/* Actions */}
-      <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-        {task.status !== 'completed' && (
+      {/* ── Right: action button + three-dot menu ──────────────────────── */}
+      <div className="flex items-center gap-2 shrink-0">
+
+        {/* Primary action */}
+        {!isCompleted && (
           <button
             onClick={() => onFocus(task._id)}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-masss-accent/10 text-masss-accent rounded-lg text-xs font-medium hover:bg-masss-accent hover:text-white transition-colors"
+            className="flex items-center gap-1.5 px-4 py-1.5 bg-masss-accent text-white rounded-lg text-xs font-semibold hover:opacity-90 transition-opacity"
           >
-            <Play size={11} fill="currentColor" />
-            Focus
+            <RotateCcw size={12} />
+            {task.status === 'in_progress' ? 'In Progress' : 'Focus'}
           </button>
         )}
-        {task.status === 'pending' && (
+
+        {/* Three-dot menu */}
+        <div ref={menuRef} className="relative">
           <button
-            onClick={() => onComplete(task._id, { status: 'completed' })}
-            className="px-3 py-1.5 bg-masss-bg border border-masss-mint text-masss-heading/60 rounded-lg text-xs hover:bg-masss-mint transition-colors"
+            onClick={() => setMenuOpen(prev => !prev)}
+            className="p-1.5 rounded-lg text-masss-heading/30 hover:text-masss-heading hover:bg-masss-bg transition-all"
           >
-            Done
+            <MoreHorizontal size={16} />
           </button>
-        )}
+
+          {menuOpen && (
+            <div className="absolute right-0 top-8 z-20 w-40 bg-masss-white border border-masss-mint rounded-xl shadow-lg overflow-hidden">
+              {task.status === 'pending' && (
+                <>
+                  <button
+                    onClick={() => { onComplete(task._id, { status: 'completed' }); setMenuOpen(false) }}
+                    className="flex items-center gap-2.5 w-full px-3 py-2.5 text-sm text-masss-heading hover:bg-masss-bg transition-colors"
+                  >
+                    <CheckCircle size={13} className="text-masss-heading/40" />
+                    Mark as Done
+                  </button>
+                  <div className="h-px bg-masss-mint mx-2" />
+                </>
+              )}
+              {task.status !== 'archived' && (
+                <button
+                  onClick={() => { onArchive(task._id); setMenuOpen(false) }}
+                  className="flex items-center gap-2.5 w-full px-3 py-2.5 text-sm text-masss-heading hover:bg-masss-bg transition-colors"
+                >
+                  <Archive size={13} className="text-masss-heading/40" />
+                  Archive
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+
       </div>
     </div>
-  )
-}
-
-// ── Exported TaskRow (switches variant) ───────────────────────────────────────
-
-export const TaskRow = ({ task, variant = 'module', onFocus, onArchive, onComplete, moduleName }) => {
-  if (variant === 'page') {
-    return (
-      <PageTaskRow
-        task={task}
-        onFocus={onFocus}
-        onComplete={onComplete}
-        moduleName={moduleName}
-      />
-    )
-  }
-  return (
-    <ModuleTaskRow
-      task={task}
-      onFocus={onFocus}
-      onArchive={onArchive}
-    />
   )
 }

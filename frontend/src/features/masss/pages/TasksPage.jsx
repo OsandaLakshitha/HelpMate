@@ -71,19 +71,7 @@ export default function TasksPage() {
 
   return (
     <PageWrapper>
-      <PageHeader
-        // title="Tasks"
-        // subtitle="All tasks across modules"
-        action={
-          <button
-            onClick={() => setCreateOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-masss-accent text-white rounded-lg text-sm font-medium hover:opacity-90 transition-opacity"
-          >
-            <Plus size={15} />
-            New Task
-          </button>
-        }
-      />
+ 
 
       {/* Filters */}
       <div className="flex items-center gap-2 mb-6 flex-wrap">
