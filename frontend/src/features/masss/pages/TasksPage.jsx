@@ -9,12 +9,13 @@ import { useModules } from '../hooks/useModules'
 import { useMasss }   from '../context/MasssContext'
 import { TaskList }        from '../components/tasks/TaskList'
 import { CreateTaskModal } from '../components/tasks/CreateTaskModal'
+import { EditTaskModal }   from '../components/tasks/EditTaskModal'
 
 const STATUS_OPTIONS = [
-  { value: '',            label: 'All statuses'  },
-  { value: 'pending',     label: 'Pending'       },
-  { value: 'in_progress', label: 'In Progress'   },
-  { value: 'completed',   label: 'Completed'     },
+  { value: '',            label: 'All statuses' },
+  { value: 'pending',     label: 'Pending'      },
+  { value: 'in_progress', label: 'In Progress'  },
+  { value: 'completed',   label: 'Completed'    },
 ]
 
 const PRIORITY_OPTIONS = [
@@ -27,23 +28,28 @@ const PRIORITY_OPTIONS = [
 export default function TasksPage() {
   const navigate = useNavigate()
 
+  // ── Filter state ────────────────────────────────────────────────────────────
   const [search,         setSearch]       = useState('')
   const [statusFilter,   setStatus]       = useState('')
   const [priorityFilter, setPriority]     = useState('')
   const [moduleFilter,   setModuleFilter] = useState('')
   const [showFilters,    setShowFilters]  = useState(false)
-  const [createOpen,     setCreateOpen]   = useState(false)
-  const [submitting,     setSubmitting]   = useState(false)
 
+  // ── Modal state ─────────────────────────────────────────────────────────────
+  const [createOpen,   setCreateOpen]   = useState(false)
+  const [editingTask,  setEditingTask]  = useState(null)  // holds the task being edited
+  const [submitting,   setSubmitting]   = useState(false)
+
+  // ── Data ────────────────────────────────────────────────────────────────────
   const { tasks, loading, error, updateTask, archiveTask, createTask, refetch } = useTasks({
     status:    statusFilter   || undefined,
     priority:  priorityFilter || undefined,
     module_id: moduleFilter   || undefined,
   })
   const { modules } = useModules()
-
   const { focusActive, focusSessionId, focusTaskId } = useMasss()
 
+  // ── Helpers ─────────────────────────────────────────────────────────────────
   const getModuleName = (moduleId) => {
     if (!moduleId) return null
     const mod = modules.find(m => m._id === (moduleId._id || moduleId))
@@ -55,7 +61,6 @@ export default function TasksPage() {
     !search || t.name.toLowerCase().includes(search.toLowerCase())
   )
 
-  // Badge count for active dropdown filters
   const activeFilterCount = [statusFilter, priorityFilter, moduleFilter].filter(Boolean).length
 
   const clearFilters = () => {
@@ -69,6 +74,7 @@ export default function TasksPage() {
     ...(modules || []).map(m => ({ value: m._id, label: m.name })),
   ]
 
+  // ── Handlers ────────────────────────────────────────────────────────────────
   const handleFocusClick = (taskId) => {
     if (focusActive && focusSessionId && focusTaskId !== taskId) {
       navigate(`/masss/focus/${focusTaskId}`, {
@@ -96,17 +102,47 @@ export default function TasksPage() {
     }
   }
 
+  // Called by EditTaskModal on form submit
+  const handleEditTask = async (taskId, payload) => {
+    try {
+      setSubmitting(true)
+      await updateTask(taskId, payload)
+      setEditingTask(null)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  // ── Render ───────────────────────────────────────────────────────────────────
   if (loading) return <PageLoader />
   if (error)   return <PageError message={error} onRetry={refetch} />
 
+  const activeTasks = filtered.filter(t => t.status !== 'archived')
+
   return (
     <PageWrapper>
-    
+      <PageHeader
+        title="Tasks"
+        subtitle={
+          activeTasks.length > 0
+            ? `${activeTasks.length} task${activeTasks.length !== 1 ? 's' : ''}`
+            : 'All tasks'
+        }
+        action={
+          <button
+            onClick={() => setCreateOpen(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-masss-accent text-white rounded-lg text-sm font-medium hover:opacity-90 transition-opacity"
+          >
+            <Plus size={15} />
+            New Task
+          </button>
+        }
+      />
 
-      {/* ── Toolbar ──────────────────────────────────────────────────────────── */}
+      {/* ── Toolbar ────────────────────────────────────────────────────────── */}
       <div className="flex items-center gap-2 mb-3 flex-wrap">
 
-        {/* Search input */}
+        {/* Search */}
         <div className="relative">
           <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-masss-heading/30 pointer-events-none" />
           <input
@@ -137,7 +173,7 @@ export default function TasksPage() {
           )}
         </button>
 
-        {/* Clear button */}
+        {/* Clear */}
         {activeFilterCount > 0 && (
           <button
             onClick={clearFilters}
@@ -148,49 +184,41 @@ export default function TasksPage() {
           </button>
         )}
 
-        {/* ── Filter dropdowns (collapsible) ────────────────────────────────────── */}
-           {showFilters && (
-        <div className="flex gap-2 flex-wrap">
-          {/* Status */}
-          <select
-            value={statusFilter}
-            onChange={e => setStatus(e.target.value)}
-            className="px-3 py-2 rounded-lg border border-masss-mint bg-masss-white text-sm text-masss-heading focus:outline-none focus:border-masss-accent"
-          >
-            {STATUS_OPTIONS.map(o => (
-              <option key={o.value} value={o.value}>{o.label}</option>
-            ))}
-          </select>
-
-          {/* Priority */}
-          <select
-            value={priorityFilter}
-            onChange={e => setPriority(e.target.value)}
-            className="px-3 py-2 rounded-lg border border-masss-mint bg-masss-white text-sm text-masss-heading focus:outline-none focus:border-masss-accent"
-          >
-            {PRIORITY_OPTIONS.map(o => (
-              <option key={o.value} value={o.value}>{o.label}</option>
-            ))}
-          </select>
-
-          {/* Module */}
-          <select
-            value={moduleFilter}
-            onChange={e => setModuleFilter(e.target.value)}
-            className="px-3 py-2 rounded-lg border border-masss-mint bg-masss-white text-sm text-masss-heading focus:outline-none focus:border-masss-accent"
-          >
-            {moduleOptions.map(o => (
-              <option key={o.value} value={o.value}>{o.label}</option>
-            ))}
-          </select>
-        </div>
-      )}
+        {/* Filter dropdowns */}
+        {showFilters && (
+          <div className="flex gap-2 flex-wrap">
+            <select
+              value={statusFilter}
+              onChange={e => setStatus(e.target.value)}
+              className="px-3 py-2 rounded-lg border border-masss-mint bg-masss-white text-sm text-masss-heading focus:outline-none focus:border-masss-accent"
+            >
+              {STATUS_OPTIONS.map(o => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+            <select
+              value={priorityFilter}
+              onChange={e => setPriority(e.target.value)}
+              className="px-3 py-2 rounded-lg border border-masss-mint bg-masss-white text-sm text-masss-heading focus:outline-none focus:border-masss-accent"
+            >
+              {PRIORITY_OPTIONS.map(o => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+            <select
+              value={moduleFilter}
+              onChange={e => setModuleFilter(e.target.value)}
+              className="px-3 py-2 rounded-lg border border-masss-mint bg-masss-white text-sm text-masss-heading focus:outline-none focus:border-masss-accent"
+            >
+              {moduleOptions.map(o => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
 
-      
-   
-
-      {/* ── Task list ─────────────────────────────────────────────────────────── */}
+      {/* ── Task list ──────────────────────────────────────────────────────── */}
       {filtered.length === 0 ? (
         <EmptyState
           icon={<CheckSquare size={32} />}
@@ -207,15 +235,25 @@ export default function TasksPage() {
           onFocus={handleFocusClick}
           onComplete={(taskId, payload) => updateTask(taskId, payload)}
           onArchive={archiveTask}
+          onEdit={setEditingTask}
           getModuleName={getModuleName}
         />
       )}
 
-      {/* Create Task Modal */}
+      {/* Create modal */}
       <CreateTaskModal
         open={createOpen}
         onClose={() => setCreateOpen(false)}
         onSubmit={handleCreateTask}
+        submitting={submitting}
+      />
+
+      {/* Edit modal */}
+      <EditTaskModal
+        open={!!editingTask}
+        task={editingTask}
+        onClose={() => setEditingTask(null)}
+        onSave={handleEditTask}
         submitting={submitting}
       />
     </PageWrapper>

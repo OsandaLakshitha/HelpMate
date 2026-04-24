@@ -2,7 +2,7 @@
 
 import React from 'react'
 import { motion } from 'framer-motion'
-import { CheckCircle } from 'lucide-react'
+import { CheckCircle, Archive } from 'lucide-react'
 import { TaskRow } from './TaskRow'
 
 export const TaskList = ({
@@ -10,14 +10,18 @@ export const TaskList = ({
   onFocus,
   onComplete,
   onArchive,
-  getModuleName,  // optional — fn(moduleId) → string | null
-  onAddClick,     // optional — shows Add Task button in empty state
+  onEdit,
+  getModuleName,
+  onAddClick,
   emptyTitle    = 'No tasks yet',
   emptySubtitle = 'Add your first task.',
 }) => {
 
-  // ── Empty state ─────────────────────────────────────────────────────────────
-  if (!tasks || tasks.length === 0) {
+  const activeTasks   = (tasks || []).filter(t => t.status !== 'archived')
+  const archivedTasks = (tasks || []).filter(t => t.status === 'archived')
+
+  // ── Full empty state (no tasks at all) ──────────────────────────────────────
+  if (activeTasks.length === 0 && archivedTasks.length === 0) {
     return (
       <div className="p-8 text-center bg-masss-white border border-masss-mint rounded-2xl">
         <CheckCircle size={22} className="mx-auto mb-3 text-masss-heading/20" />
@@ -35,25 +39,77 @@ export const TaskList = ({
     )
   }
 
-  // ── Task list ────────────────────────────────────────────────────────────────
   return (
-    <div className="space-y-2">
-      {tasks.map((task, i) => (
-        <motion.div
-          key={task._id}
-          initial={{ opacity: 0, y: 4 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: i * 0.03 }}
-        >
-          <TaskRow
-            task={task}
-            onFocus={onFocus}
-            onComplete={onComplete}
-            onArchive={onArchive}
-            moduleName={getModuleName ? getModuleName(task.moduleId) : null}
-          />
-        </motion.div>
-      ))}
+    <div className="space-y-6">
+
+      {/* ── Active tasks ────────────────────────────────────────────────────── */}
+      {activeTasks.length > 0 && (
+        <div className="space-y-2">
+          {activeTasks.map((task, i) => (
+            <motion.div
+              key={task._id}
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.03 }}
+            >
+              <TaskRow
+                task={task}
+                onFocus={onFocus}
+                onComplete={onComplete}
+                onArchive={onArchive}
+                onEdit={onEdit}
+                moduleName={getModuleName ? getModuleName(task.moduleId) : null}
+              />
+            </motion.div>
+          ))}
+        </div>
+      )}
+
+      {/* ── Archived tasks section ───────────────────────────────────────────── */}
+      {archivedTasks.length > 0 && (
+        <div>
+          {/* Section label */}
+          <div className="flex items-center gap-2 mb-3">
+            <Archive size={12} className="text-masss-heading/30" />
+            <span className="text-xs font-semibold text-masss-heading/30 uppercase tracking-wider">
+              Deleted ({archivedTasks.length})
+            </span>
+            <div className="flex-1 h-px bg-masss-mint" />
+          </div>
+
+          {/* Faded archived rows */}
+          <div className="space-y-2 opacity-50">
+            {archivedTasks.map((task, i) => (
+              <motion.div
+                key={task._id}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: i * 0.02 }}
+              >
+                <div className="flex items-center gap-4 px-4 py-3 bg-masss-white border border-masss-mint rounded-xl">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-masss-heading/50 line-through truncate">
+                      {task.name}
+                    </p>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span className="text-xs text-masss-heading/30 capitalize">{task.priority}</span>
+                      <span className="text-xs text-masss-heading/30">
+                        Sessions {task.sessionsCount || 0}
+                      </span>
+                      {getModuleName?.(task.moduleId) && (
+                        <span className="text-xs text-masss-heading/30">
+                          · {getModuleName(task.moduleId)}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      )}
+
     </div>
   )
 }
