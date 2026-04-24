@@ -5,7 +5,7 @@ import { motion } from 'framer-motion'
 import { X } from 'lucide-react'
 import { PRIORITY_OPTIONS, EMPTY_TASK } from './taskConstants'
 
-export const CreateTaskModal = ({ open, onClose, onSubmit, submitting, exams }) => {
+export const CreateTaskModal = ({ open, onClose, onSubmit, submitting, exams, modules }) => {
   const [form, setForm] = useState(EMPTY_TASK)
 
   const set = (field, value) => setForm(p => ({ ...p, [field]: value }))
@@ -34,7 +34,9 @@ export const CreateTaskModal = ({ open, onClose, onSubmit, submitting, exams }) 
         <div className="flex items-center justify-between mb-5">
           <div>
             <h2 className="text-lg font-bold text-masss-heading">Add Task</h2>
-            <p className="text-xs text-masss-heading/50 mt-0.5">Add a task to this module.</p>
+            <p className="text-xs text-masss-heading/50 mt-0.5">
+              {modules ? 'Add a new task.' : 'Add a task to this module.'}
+            </p>
           </div>
           <button onClick={onClose} className="text-masss-heading/40 hover:text-masss-heading">
             <X size={18} />
@@ -54,6 +56,26 @@ export const CreateTaskModal = ({ open, onClose, onSubmit, submitting, exams }) 
               required
             />
           </div>
+
+          {/* Module select — only shown on TasksPage (modules prop provided) */}
+          {modules?.length > 0 && (
+            <div>
+              <label className="text-xs font-semibold text-masss-heading/60 mb-1.5 block">
+                Module *
+              </label>
+              <select
+                value={form.module_id || ''}
+                onChange={e => set('module_id', e.target.value)}
+                required
+                className="w-full px-3 py-2.5 rounded-lg border border-masss-mint text-sm text-masss-heading bg-masss-bg focus:outline-none focus:border-masss-accent"
+              >
+                <option value="" disabled>Select a module…</option>
+                {modules.map(m => (
+                  <option key={m._id} value={m._id}>{m.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {/* Description */}
           <div>

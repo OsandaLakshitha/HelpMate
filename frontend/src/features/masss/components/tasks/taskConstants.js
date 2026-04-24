@@ -24,6 +24,7 @@ export const EMPTY_TASK = {
   estimated_pomodoros: 2,
   deadline:            '',
   exam_id:             '',
+  module_id:           '',
 }
 
 export const daysUntilFromDate = (dateStr) =>

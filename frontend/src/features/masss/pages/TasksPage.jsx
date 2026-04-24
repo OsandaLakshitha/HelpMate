@@ -91,6 +91,7 @@ export default function TasksPage() {
       await createTask({
         name:                form.name,
         description:         form.description || undefined,
+        module_id:           form.module_id   || undefined,
         priority:            form.priority,
         difficulty:          form.difficulty,
         estimated_pomodoros: form.estimated_pomodoros,
@@ -246,6 +247,7 @@ export default function TasksPage() {
         onClose={() => setCreateOpen(false)}
         onSubmit={handleCreateTask}
         submitting={submitting}
+        modules={modules}
       />
 
       {/* Edit modal */}
@@ -259,3 +261,4 @@ export default function TasksPage() {
     </PageWrapper>
   )
 }
+
