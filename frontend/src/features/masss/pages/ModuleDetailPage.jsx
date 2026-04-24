@@ -1,47 +1,103 @@
-// frontend/src/features/masss/pages/ModuleDetailPage.jsx
+// src/features/masss/pages/ModuleDetailPage.jsx
 
 import React, { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { motion } from 'framer-motion'
-import { ArrowLeft, Plus, CheckCircle, Clock, Trash2, X } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { ArrowLeft, Plus } from 'lucide-react'
 import { PageWrapper, PageLoader, PageError } from '../components/layout/PageWrapper'
 import { useModule } from '../hooks/useModule'
 import { useTasks }  from '../hooks/useTasks'
-import { deadlineLabel, priorityColour, statusLabel } from '../utils/formatters'
+import massApi from '../lib/massApi'
+
+import { TaskList }         from '../components/tasks/TaskList'
+import { CreateTaskModal }  from '../components/tasks/CreateTaskModal'
+import { EditTaskModal }    from '../components/tasks/EditTaskModal'
+import { ExamList }         from '../components/exams/ExamList'
+import { CreateExamModal }  from '../components/exams/CreateExamModal'
+import { ModuleStatsStrip } from '../components/modules/ModuleStatsStrip'
 
 export default function ModuleDetailPage() {
-  const { id }     = useParams()
-  const navigate   = useNavigate()
+  const { id }   = useParams()
+  const navigate = useNavigate()
+
   const { module, loading: mLoading, error: mError, refetch: mRefetch } = useModule(id)
-  const { tasks, loading: tLoading, createTask, archiveTask } = useTasks({ moduleId: id })
+const { tasks, loading: tLoading, createTask, updateTask, archiveTask } = useTasks({ moduleId: id })
 
-  const [showTaskForm, setShowTaskForm] = useState(false)
-  const [taskForm, setTaskForm]         = useState({
-    name: '', priority: 'medium', difficulty: 3, estimated_pomodoros: 2, deadline: '',
-  })
-  const [submitting, setSubmitting]     = useState(false)
+  const [activeTab,      setActiveTab]      = useState('tasks')
+  const [createTaskOpen, setCreateTaskOpen] = useState(false)
+  const [createExamOpen, setCreateExamOpen] = useState(false)
+  const [submitting,     setSubmitting]     = useState(false)
+  const [editingTask, setEditingTask] = useState(null)
 
-  const handleCreateTask = async (e) => {
-    e.preventDefault()
+  // ── Handlers ──────────────────────────────────────────────────────────────
+
+    const handleEditTask = async (taskId, payload) => {
+  try {
+    setSubmitting(true)
+    await updateTask(taskId, payload)
+    setEditingTask(null)
+  } finally {
+    setSubmitting(false)
+  }
+}
+  
+  const handleCreateTask = async (form) => {
     try {
       setSubmitting(true)
-      await createTask({ ...taskForm, module_id: id })
-      setShowTaskForm(false)
-      setTaskForm({ name: '', priority: 'medium', difficulty: 3, estimated_pomodoros: 2, deadline: '' })
+      await createTask({
+        name:                form.name,
+        description:         form.description || undefined,
+        module_id:           id,
+        priority:            form.priority,
+        difficulty:          form.difficulty,
+        estimated_pomodoros: form.estimated_pomodoros,
+        deadline:            form.deadline ? new Date(form.deadline).toISOString() : undefined,
+        exam_id:             form.exam_id || undefined,
+      })
+      setCreateTaskOpen(false)
     } finally {
       setSubmitting(false)
     }
   }
 
+  const handleCreateExam = async (form) => {
+    try {
+      setSubmitting(true)
+      await massApi.post(`/exams/module/${id}`, {
+        name:      form.name,
+        exam_type: form.exam_type,
+        due_date:  form.due_date,
+        weight:    form.weight,
+      })
+      await mRefetch()
+      setCreateExamOpen(false)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+
+
+  // ── Loading / error ────────────────────────────────────────────────────────
+
   if (mLoading || tLoading) return <PageLoader />
-  if (mError) return <PageError message={mError} onRetry={mRefetch} />
+  if (mError)  return <PageError message={mError} onRetry={mRefetch} />
   if (!module) return <PageError message="Module not found" />
 
-  const activeTasks    = tasks.filter(t => t.status !== 'completed' && t.status !== 'archived')
-  const completedTasks = tasks.filter(t => t.status === 'completed')
+  const color    = module.color || '#0FA89E'
+  const exams    = module.exams || []
+  const taskList = tasks || []
+
+  const tabs = [
+    { id: 'tasks', label: 'Tasks', count: taskList.length },
+    { id: 'exams', label: 'Exams', count: exams.length   },
+  ]
+
+  // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <PageWrapper>
+ <PageWrapper className="flex flex-col overflow-hidden pb-1">
+
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
         <button
@@ -50,207 +106,135 @@ export default function ModuleDetailPage() {
         >
           <ArrowLeft size={16} />
         </button>
+
         <div
           className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-          style={{ background: module.color || '#0FA89E' }}
+          style={{ background: color + '20', border: `1px solid ${color}35` }}
         >
-          <span className="text-white font-bold text-sm">{module.name?.[0]}</span>
+          <div className="w-3.5 h-3.5 rounded-full" style={{ background: color }} />
         </div>
+
         <div className="flex-1 min-w-0">
           <h1 className="text-xl font-bold text-masss-heading truncate">{module.name}</h1>
-          <p className="text-sm text-masss-accent capitalize">
-            {module.category?.replace('_', ' ')} · {module.energyTime}
+          <p className="text-xs text-masss-heading/50 capitalize">
+            {module.category?.replace('_', ' ')} · Best in {module.energyTime || module.energy_time}
           </p>
         </div>
-        <button
-          onClick={() => setShowTaskForm(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-masss-accent text-white rounded-lg text-sm font-medium hover:opacity-90 transition-opacity"
-        >
-          <Plus size={14} />
-          Add Task
-        </button>
-      </div>
 
-      {/* Exams */}
-      {module.exams?.length > 0 && (
-        <div className="mb-6">
-          <p className="text-xs font-semibold text-masss-heading/50 uppercase tracking-wider mb-3">Exams</p>
-          <div className="flex gap-3 flex-wrap">
-            {module.exams.map(exam => (
-              <div key={exam._id} className="px-4 py-2.5 bg-masss-white border border-masss-mint rounded-xl">
-                <p className="text-sm font-semibold text-masss-heading">{exam.name}</p>
-                <p className="text-xs text-masss-accent mt-0.5">
-                  {deadlineLabel(exam.dueDate)} · {exam.weight}%
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Active tasks */}
-      <div className="mb-6">
-        <p className="text-xs font-semibold text-masss-heading/50 uppercase tracking-wider mb-3">
-          Active tasks ({activeTasks.length})
-        </p>
-        {activeTasks.length === 0 ? (
-          <div className="p-8 text-center bg-masss-white border border-masss-mint rounded-2xl">
-            <p className="text-sm text-masss-heading/40">No active tasks. Add one above.</p>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {activeTasks.map((task, i) => (
-              <motion.div
-                key={task._id}
-                initial={{ opacity: 0, y: 4 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.04 }}
-                className="flex items-center gap-3 p-4 bg-masss-white border border-masss-mint rounded-xl group"
-              >
-                <div className={[
-                  'w-2 h-2 rounded-full shrink-0',
-                  task.status === 'in_progress' ? 'bg-masss-accent animate-pulse' : 'bg-masss-mint',
-                ].join(' ')} />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-masss-heading truncate">{task.name}</p>
-                  <div className="flex items-center gap-2 mt-1 flex-wrap">
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
-                      task.priority === 'high' ? 'bg-red-100 text-red-600' :
-                      task.priority === 'medium' ? 'bg-amber-100 text-amber-600' :
-                      'bg-masss-mint text-masss-accent'
-                    }`}>
-                      {task.priority}
-                    </span>
-                    <span className="text-xs text-masss-heading/40">
-                      {task.sessionsCount}/{task.estimatedPomodoros} pomos
-                    </span>
-                    {task.deadline && (
-                      <span className="flex items-center gap-1 text-xs text-masss-heading/40">
-                        <Clock size={10} />
-                        {deadlineLabel(task.deadline)}
-                      </span>
-                    )}
-                  </div>
-                </div>
-                <button
-                  onClick={() => archiveTask(task._id)}
-                  className="opacity-0 group-hover:opacity-100 p-1.5 text-masss-heading/30 hover:text-masss-danger transition-all"
-                >
-                  <Trash2 size={14} />
-                </button>
-              </motion.div>
-            ))}
-          </div>
+        {activeTab === 'tasks' && (
+          <button
+            onClick={() => setCreateTaskOpen(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-masss-accent text-white rounded-lg text-sm font-medium hover:opacity-90 transition-opacity shrink-0"
+          >
+            <Plus size={14} /> Add Task
+          </button>
+        )}
+        {activeTab === 'exams' && (
+          <button
+            onClick={() => setCreateExamOpen(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-masss-accent text-white rounded-lg text-sm font-medium hover:opacity-90 transition-opacity shrink-0"
+          >
+            <Plus size={14} /> Add Exam
+          </button>
         )}
       </div>
 
-      {/* Completed tasks */}
-      {completedTasks.length > 0 && (
-        <div>
-          <p className="text-xs font-semibold text-masss-heading/50 uppercase tracking-wider mb-3">
-            Completed ({completedTasks.length})
-          </p>
-          <div className="space-y-2">
-            {completedTasks.map(task => (
-              <div key={task._id} className="flex items-center gap-3 p-3 bg-masss-bg border border-masss-mint rounded-xl opacity-60">
-                <CheckCircle size={16} className="text-masss-accent shrink-0" />
-                <p className="text-sm text-masss-heading/60 line-through truncate">{task.name}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Add task modal */}
-      {showTaskForm && (
-        <div
-          className="fixed inset-0 bg-masss-heading/30 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-          onClick={() => setShowTaskForm(false)}
-        >
-          <div
-            className="bg-masss-white rounded-2xl p-6 w-full max-w-md border border-masss-mint shadow-xl"
-            onClick={e => e.stopPropagation()}
+      {/* Tab bar */}
+      <div className="flex gap-1 p-1 bg-masss-bg border border-masss-mint rounded-xl mb-5">
+        {tabs.map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={[
+              'flex-1 py-2 rounded-lg text-sm font-medium transition-colors',
+              activeTab === tab.id
+                ? 'bg-masss-accent text-white shadow-sm'
+                : 'text-masss-heading/50 hover:text-masss-heading',
+            ].join(' ')}
           >
-            <div className="flex items-center justify-between mb-5">
-              <h2 className="text-lg font-bold text-masss-heading">Add Task</h2>
-              <button onClick={() => setShowTaskForm(false)} className="text-masss-heading/40 hover:text-masss-heading">
-                <X size={18} />
-              </button>
-            </div>
+            {tab.label}
+            {tab.count > 0 && (
+              <span className="ml-1.5 text-[10px] opacity-70">({tab.count})</span>
+            )}
+          </button>
+        ))}
+      </div>
 
-            <form onSubmit={handleCreateTask} className="space-y-4">
-              <input
-                type="text"
-                placeholder="Task name *"
-                value={taskForm.name}
-                onChange={e => setTaskForm(p => ({ ...p, name: e.target.value }))}
-                className="w-full px-3 py-2.5 rounded-lg border border-masss-mint text-sm text-masss-heading bg-masss-bg focus:outline-none focus:border-masss-accent placeholder:text-masss-heading/30"
-                required
-              />
+<div className=' flex-1 overflow-y-auto pr-2'>
+      <AnimatePresence mode="wait">
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs text-masss-heading/50 mb-1 block">Priority</label>
-                  <select
-                    value={taskForm.priority}
-                    onChange={e => setTaskForm(p => ({ ...p, priority: e.target.value }))}
-                    className="w-full px-3 py-2 rounded-lg border border-masss-mint text-sm text-masss-heading bg-masss-bg focus:outline-none focus:border-masss-accent"
-                  >
-                    {['high','medium','low'].map(p => <option key={p} value={p} className="capitalize">{p}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="text-xs text-masss-heading/50 mb-1 block">Difficulty (1-5)</label>
-                  <input
-                    type="number" min={1} max={5}
-                    value={taskForm.difficulty}
-                    onChange={e => setTaskForm(p => ({ ...p, difficulty: Number(e.target.value) }))}
-                    className="w-full px-3 py-2 rounded-lg border border-masss-mint text-sm text-masss-heading bg-masss-bg focus:outline-none focus:border-masss-accent"
-                  />
-                </div>
-              </div>
+        {/* Tasks tab */}
+        {activeTab === 'tasks' && (
+          <motion.div
+            key="tasks"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.2 }}
+            className="space-y-5"
+          >
+            <TaskList
+  tasks={taskList}
+  onFocus={taskId => navigate(`/masss/focus/${taskId}`)}
+  onArchive={archiveTask}
+  onEdit={setEditingTask}
+  onAddClick={() => setCreateTaskOpen(true)}
+/>
+            <ModuleStatsStrip tasks={taskList} />
+          </motion.div>
+        )}
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs text-masss-heading/50 mb-1 block">Pomodoros</label>
-                  <input
-                    type="number" min={1}
-                    value={taskForm.estimated_pomodoros}
-                    onChange={e => setTaskForm(p => ({ ...p, estimated_pomodoros: Number(e.target.value) }))}
-                    className="w-full px-3 py-2 rounded-lg border border-masss-mint text-sm text-masss-heading bg-masss-bg focus:outline-none focus:border-masss-accent"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs text-masss-heading/50 mb-1 block">Deadline</label>
-                  <input
-                    type="date"
-                    value={taskForm.deadline}
-                    onChange={e => setTaskForm(p => ({ ...p, deadline: e.target.value }))}
-                    className="w-full px-3 py-2 rounded-lg border border-masss-mint text-sm text-masss-heading bg-masss-bg focus:outline-none focus:border-masss-accent"
-                  />
-                </div>
-              </div>
+        {/* Exams tab */}
+        {activeTab === 'exams' && (
+          <motion.div
+            key="exams"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.2 }}
+          >
+            <ExamList
+              exams={exams}
+              onAddClick={() => setCreateExamOpen(true)}
+            />
+          </motion.div>
+        )}
 
-              <div className="flex gap-3 pt-1">
-                <button
-                  type="button"
-                  onClick={() => setShowTaskForm(false)}
-                  className="flex-1 py-2.5 rounded-lg border border-masss-mint text-masss-heading/60 text-sm hover:bg-masss-bg"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="flex-1 py-2.5 rounded-lg bg-masss-accent text-white text-sm font-semibold disabled:opacity-40 hover:opacity-90"
-                >
-                  {submitting ? 'Adding...' : 'Add Task'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      </AnimatePresence>
+
+      </div>
+
+      {/* Modals */}
+      <AnimatePresence>
+        {createTaskOpen && (
+          <CreateTaskModal
+            open={createTaskOpen}
+            onClose={() => setCreateTaskOpen(false)}
+            onSubmit={handleCreateTask}
+            submitting={submitting}
+            exams={exams}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {createExamOpen && (
+          <CreateExamModal
+            open={createExamOpen}
+            onClose={() => setCreateExamOpen(false)}
+            onSubmit={handleCreateExam}
+            submitting={submitting}
+          />
+        )}
+      </AnimatePresence>
+
+      <EditTaskModal
+  open={!!editingTask}
+  task={editingTask}
+  onClose={() => setEditingTask(null)}
+  onSave={handleEditTask}
+  submitting={submitting}
+   exams={exams}
+/>
+
     </PageWrapper>
   )
 }

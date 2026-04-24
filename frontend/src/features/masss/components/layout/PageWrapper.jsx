@@ -7,7 +7,7 @@ export const PageWrapper = ({ children, className = '' }) => {
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.2, ease: 'easeOut' }}
-      className={className}
+      className={`h-full overflow-y-auto px-10 pt-8 pb-5 masss-scroll ${className}`}
     >
       {children}
     </motion.div>

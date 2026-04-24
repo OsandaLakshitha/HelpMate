@@ -183,14 +183,19 @@ html {
 /* Custom Thin Scrollbar */
 .overflow-y-auto::-webkit-scrollbar {
   width: 4px;
+
 }
 .overflow-y-auto::-webkit-scrollbar-track {
   background: transparent;
+  
 }
 .overflow-y-auto::-webkit-scrollbar-thumb {
-  background: #1e293b; /* slate-800 */
+  /* background: #1e293b; slate-800 */
+  background: #b1dbd8;
   border-radius: 10px;
+
 }
 .overflow-y-auto::-webkit-scrollbar-thumb:hover {
   background: #334155; /* slate-700 */
+ 
 }
