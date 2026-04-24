@@ -190,7 +190,8 @@ html {
   
 }
 .overflow-y-auto::-webkit-scrollbar-thumb {
-  background: #1e293b; /* slate-800 */
+  /* background: #1e293b; slate-800 */
+  background: #b1dbd8;
   border-radius: 10px;
 
 }

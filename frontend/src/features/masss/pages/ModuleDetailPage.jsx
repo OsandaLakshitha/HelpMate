@@ -11,6 +11,7 @@ import massApi from '../lib/massApi'
 
 import { TaskList }         from '../components/tasks/TaskList'
 import { CreateTaskModal }  from '../components/tasks/CreateTaskModal'
+import { EditTaskModal }    from '../components/tasks/EditTaskModal'
 import { ExamList }         from '../components/exams/ExamList'
 import { CreateExamModal }  from '../components/exams/CreateExamModal'
 import { ModuleStatsStrip } from '../components/modules/ModuleStatsStrip'
@@ -20,15 +21,26 @@ export default function ModuleDetailPage() {
   const navigate = useNavigate()
 
   const { module, loading: mLoading, error: mError, refetch: mRefetch } = useModule(id)
-  const { tasks,  loading: tLoading, createTask, archiveTask }          = useTasks({ moduleId: id })
+const { tasks, loading: tLoading, createTask, updateTask, archiveTask } = useTasks({ moduleId: id })
 
   const [activeTab,      setActiveTab]      = useState('tasks')
   const [createTaskOpen, setCreateTaskOpen] = useState(false)
   const [createExamOpen, setCreateExamOpen] = useState(false)
   const [submitting,     setSubmitting]     = useState(false)
+  const [editingTask, setEditingTask] = useState(null)
 
   // ── Handlers ──────────────────────────────────────────────────────────────
 
+    const handleEditTask = async (taskId, payload) => {
+  try {
+    setSubmitting(true)
+    await updateTask(taskId, payload)
+    setEditingTask(null)
+  } finally {
+    setSubmitting(false)
+  }
+}
+  
   const handleCreateTask = async (form) => {
     try {
       setSubmitting(true)
@@ -63,6 +75,8 @@ export default function ModuleDetailPage() {
       setSubmitting(false)
     }
   }
+
+
 
   // ── Loading / error ────────────────────────────────────────────────────────
 
@@ -146,7 +160,7 @@ export default function ModuleDetailPage() {
         ))}
       </div>
 
-<div className='bg-red-400 flex-1 overflow-y-auto pr-2'>
+<div className=' flex-1 overflow-y-auto pr-2'>
       <AnimatePresence mode="wait">
 
         {/* Tasks tab */}
@@ -159,12 +173,12 @@ export default function ModuleDetailPage() {
             className="space-y-5"
           >
             <TaskList
-              tasks={taskList}
-              variant="module"
-              onFocus={taskId => navigate(`/masss/focus/${taskId}`)}
-              onArchive={archiveTask}
-              onAddClick={() => setCreateTaskOpen(true)}
-            />
+  tasks={taskList}
+  onFocus={taskId => navigate(`/masss/focus/${taskId}`)}
+  onArchive={archiveTask}
+  onEdit={setEditingTask}
+  onAddClick={() => setCreateTaskOpen(true)}
+/>
             <ModuleStatsStrip tasks={taskList} />
           </motion.div>
         )}
@@ -211,6 +225,14 @@ export default function ModuleDetailPage() {
           />
         )}
       </AnimatePresence>
+
+      <EditTaskModal
+  open={!!editingTask}
+  task={editingTask}
+  onClose={() => setEditingTask(null)}
+  onSave={handleEditTask}
+  submitting={submitting}
+/>
 
     </PageWrapper>
   )
