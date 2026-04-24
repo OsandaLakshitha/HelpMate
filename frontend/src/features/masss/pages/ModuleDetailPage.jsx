@@ -82,7 +82,7 @@ export default function ModuleDetailPage() {
   // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <PageWrapper>
+ <PageWrapper className="flex flex-col overflow-hidden pb-1">
 
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
@@ -146,6 +146,7 @@ export default function ModuleDetailPage() {
         ))}
       </div>
 
+<div className='bg-red-400 flex-1 overflow-y-auto pr-2'>
       <AnimatePresence mode="wait">
 
         {/* Tasks tab */}
@@ -184,6 +185,8 @@ export default function ModuleDetailPage() {
         )}
 
       </AnimatePresence>
+
+      </div>
 
       {/* Modals */}
       <AnimatePresence>

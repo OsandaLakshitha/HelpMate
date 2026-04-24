@@ -40,7 +40,7 @@ export const TaskList = ({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="flex-1 overflow-y-auto pr-2">
 
       {/* ── Active tasks ────────────────────────────────────────────────────── */}
       {activeTasks.length > 0 && (

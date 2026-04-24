@@ -188,7 +188,7 @@ useEffect(() => {
 
   return (
     <div className={cn(
-      "h-screen max-h-screen w-full p-4 flex box-border text-white font-sans transition-colors duration-1000 overflow-hidden",
+      "h-full w-full p-4 flex box-border text-white font-sans transition-colors duration-1000 overflow-hidden",
       isBreakMode ? "bg-slate-900" : "bg-[#0D1B2A]"
     )}>
 

@@ -121,9 +121,9 @@ export default function TasksPage() {
   const activeTasks = filtered.filter(t => t.status !== 'archived')
 
   return (
-    <PageWrapper>
+    <PageWrapper className="flex flex-col overflow-hidden pb-1">
       <PageHeader
-        title="Tasks"
+        // title="Tasks"
         subtitle={
           activeTasks.length > 0
             ? `${activeTasks.length} task${activeTasks.length !== 1 ? 's' : ''}`
@@ -220,6 +220,7 @@ export default function TasksPage() {
       </div>
 
       {/* ── Task list ──────────────────────────────────────────────────────── */}
+    
       {filtered.length === 0 ? (
         <EmptyState
           icon={<CheckSquare size={32} />}
@@ -230,6 +231,7 @@ export default function TasksPage() {
               : 'Try adjusting or clearing your filters.'
           }
         />
+        
       ) : (
         <TaskList
           tasks={filtered}
@@ -240,6 +242,7 @@ export default function TasksPage() {
           getModuleName={getModuleName}
         />
       )}
+      
 
       {/* Create modal */}
       <CreateTaskModal

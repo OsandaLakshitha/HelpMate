@@ -98,19 +98,6 @@ export const TaskRow = ({ task, onFocus, onComplete, onArchive, onEdit, moduleNa
                 </button>
               )}
 
-              {/* Mark as Done — pending only */}
-              {task.status === 'pending' && (
-                <>
-                  <div className="h-px bg-masss-mint mx-2" />
-                  <button
-                    onClick={() => { onComplete(task._id, { status: 'completed' }); setMenuOpen(false) }}
-                    className="flex items-center gap-2.5 w-full px-3 py-2.5 text-sm text-masss-heading hover:bg-masss-bg transition-colors"
-                  >
-                    <CheckCircle size={13} className="text-masss-heading/40" />
-                    Mark as Done
-                  </button>
-                </>
-              )}
 
               {/* Delete (= archive) — available on any non-archived task */}
               {task.status !== 'archived' && (

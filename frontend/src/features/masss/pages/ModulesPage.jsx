@@ -48,7 +48,7 @@ export default function ModulesPage() {
   return (
     <PageWrapper>
       <PageHeader
-        title="Modules"
+        // title="Modules"
         subtitle={`${modules.length} subject${modules.length !== 1 ? 's' : ''}`}
         action={
           <button
