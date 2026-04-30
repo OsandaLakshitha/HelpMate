@@ -45,6 +45,7 @@ export default function TasksPage() {
     status:    statusFilter   || undefined,
     priority:  priorityFilter || undefined,
     module_id: moduleFilter   || undefined,
+    include_archived: true, 
   })
   const { modules } = useModules()
   const { focusActive, focusSessionId, focusTaskId } = useMasss()

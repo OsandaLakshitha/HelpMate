@@ -172,9 +172,10 @@ const { tasks, loading: tLoading, createTask, updateTask, archiveTask } = useTas
             transition={{ duration: 0.2 }}
             className="space-y-5"
           >
-            <TaskList
+        <TaskList
   tasks={taskList}
   onFocus={taskId => navigate(`/masss/focus/${taskId}`)}
+  onComplete={(taskId, payload) => updateTask(taskId, payload)}
   onArchive={archiveTask}
   onEdit={setEditingTask}
   onAddClick={() => setCreateTaskOpen(true)}

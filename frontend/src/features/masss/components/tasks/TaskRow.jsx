@@ -36,8 +36,16 @@ export const TaskRow = ({ task, onFocus, onComplete, onArchive, onEdit, moduleNa
   return (
     <div className="flex items-center gap-4 px-4 py-3.5 bg-masss-white border border-masss-mint rounded-xl hover:border-masss-accent/40 transition-colors">
 
+             <input
+  type="checkbox"
+  checked={isCompleted}
+  onChange={() => onComplete?.(task._id, { status: isCompleted ? 'pending' : 'completed' })}
+  className="w-4 h-4 shrink-0 rounded border-masss-mint accent-masss-accent cursor-pointer"
+  title="Mark as completed"
+/>
       {/* ── Left: name + meta ──────────────────────────────────────────── */}
       <div className="flex-1 min-w-0">
+
         <p className={`text-sm font-semibold mb-1.5 truncate ${
           isCompleted ? 'text-masss-heading/40 line-through' : 'text-masss-heading'
         }`}>

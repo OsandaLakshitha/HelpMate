@@ -4,16 +4,17 @@ const { MasssTask, MasssModule } = require('../../models/masss')
 // Mirrors read_tasks() — supports status, module_id, exam_id, priority, difficulty filters
 exports.getAll = async (req, res) => {
   try {
-    const { status, module_id, exam_id, priority, difficulty } = req.query
+    // const { status, module_id, exam_id, priority, difficulty } = req.query
+    const { status, module_id, exam_id, priority, difficulty, include_archived } = req.query
 
     const filter = { userId: req.user.id }
 
     // If no status filter → exclude archived (mirrors FastAPI behaviour)
-    if (status) {
-      filter.status = status
-    } else {
-      filter.status = { $ne: 'archived' }
-    }
+if (status) {
+  filter.status = status
+} else if (!include_archived || include_archived === 'false') {
+  filter.status = { $ne: 'archived' }
+}
 
     if (module_id)  filter.moduleId  = module_id
     if (exam_id)    filter.examId    = exam_id
