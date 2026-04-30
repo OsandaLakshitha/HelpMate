@@ -127,7 +127,6 @@ const [showCompleted, setShowCompleted] = React.useState(false)
           onClick={() => setShowCompleted(v => !v)}
           className="flex items-center gap-2 mb-3 w-full group"
         >
-          <CheckCircle size={12} className="text-masss-heading/30" />
           <span className="text-xs font-semibold text-masss-heading/30 uppercase tracking-wider">
             Completed ({completedTasks.length})
           </span>
