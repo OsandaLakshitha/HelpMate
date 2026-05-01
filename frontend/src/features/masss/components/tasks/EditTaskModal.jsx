@@ -29,7 +29,7 @@ const [form, setForm] = useState({
       deadline: task.deadline
         ? new Date(task.deadline).toISOString().slice(0, 16)
         : '',
-        exam_id: task.examId || task.exam_id || '',
+        exam_id: task.examId?._id || task.examId || task.exam_id?._id || task.exam_id || '',
     })
   }, [task])
 

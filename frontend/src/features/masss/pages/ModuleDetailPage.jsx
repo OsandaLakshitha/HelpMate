@@ -32,13 +32,8 @@ export default function ModuleDetailPage() {
     error: mError,
     refetch: mRefetch,
   } = useModule(id);
-  const {
-    tasks,
-    loading: tLoading,
-    createTask,
-    updateTask,
-    archiveTask,
-  } = useTasks({ moduleId: id });
+const { tasks, loading: tLoading, createTask, updateTask, archiveTask, refetch: tRefetch } = useTasks({ moduleId: id })
+
   const { exams, createExam, updateExam, deleteExam } = useExams(id);
 
   const [activeTab, setActiveTab] = useState("tasks");
@@ -100,6 +95,7 @@ export default function ModuleDetailPage() {
     try {
       setSubmitting(true);
       await updateExam(examId, payload);
+      await tRefetch();          // re-sync tasks so exam_id changes are reflected
       setEditingExam(null);
     } finally {
       setSubmitting(false);
@@ -210,14 +206,15 @@ export default function ModuleDetailPage() {
               transition={{ duration: 0.2 }}
               className="space-y-5"
             >
-              <TaskList
-                tasks={taskList}
-                onFocus={(taskId) => navigate(`/masss/focus/${taskId}`)}
-                onComplete={(taskId, payload) => updateTask(taskId, payload)}
-                onArchive={archiveTask}
-                onEdit={setEditingTask}
-                onAddClick={() => setCreateTaskOpen(true)}
-              />
+             <TaskList
+  tasks={taskList}
+  onFocus={(taskId) => navigate(`/masss/focus/${taskId}`)}
+  onComplete={(taskId, payload) => updateTask(taskId, payload)}
+  onArchive={archiveTask}
+  onEdit={setEditingTask}
+  onAddClick={() => setCreateTaskOpen(true)}
+  exams={exams}
+/>
               <ModuleStatsStrip tasks={taskList} />
             </motion.div>
           )}

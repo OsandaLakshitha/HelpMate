@@ -15,6 +15,7 @@ export const TaskList = ({
   onAddClick,
   emptyTitle    = 'No tasks yet',
   emptySubtitle = 'Add your first task.',
+  exams = [],
 }) => {
 
   // const activeTasks   = (tasks || []).filter(t => t.status !== 'archived')
@@ -23,6 +24,15 @@ export const TaskList = ({
 const archivedTasks   = (tasks || []).filter(t => t.status === 'archived')
 const completedTasks  = (tasks || []).filter(t => t.status === 'completed')
 const [showCompleted, setShowCompleted] = React.useState(false)
+
+const getExamName = (task) => {
+  if (!exams.length) return null
+  const examId = task.examId?._id || task.examId || task.exam_id?._id || task.exam_id
+  if (!examId) return null
+  const exam = exams.find(e => e._id === examId)
+  console.log('Finding exam name for task', task._id, 'examId:', examId, 'found exam:', exam)
+  return exam?.name || null
+}
 
   // ── Full empty state (no tasks at all) ──────────────────────────────────────
  if (activeTasks.length === 0 && archivedTasks.length === 0 && completedTasks.length === 0) {
@@ -63,6 +73,7 @@ const [showCompleted, setShowCompleted] = React.useState(false)
                 onArchive={onArchive}
                 onEdit={onEdit}
                 moduleName={getModuleName ? getModuleName(task.moduleId) : null}
+                examName={getExamName(task)}
               />
             </motion.div>
           ))}
@@ -138,13 +149,14 @@ const [showCompleted, setShowCompleted] = React.useState(false)
             {completedTasks.map((task, i) => (
               <motion.div key={task._id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.02 }}>
                 <TaskRow
-                  task={task}
-                  onFocus={onFocus}
-                  onComplete={onComplete}
-                  onArchive={onArchive}
-                  onEdit={onEdit}
-                  moduleName={getModuleName ? getModuleName(task.moduleId) : null}
-                />
+  task={task}
+  onFocus={onFocus}
+  onComplete={onComplete}
+  onArchive={onArchive}
+  onEdit={onEdit}
+  moduleName={getModuleName ? getModuleName(task.moduleId) : null}
+  examName={getExamName(task)}
+/>
               </motion.div>
             ))}
          </div>
@@ -153,4 +165,3 @@ const [showCompleted, setShowCompleted] = React.useState(false)
     </div>
   )
 }
-

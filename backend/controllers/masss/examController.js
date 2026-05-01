@@ -1,4 +1,5 @@
-const { MasssExam, MasssModule } = require('../../models/masss')
+const { MasssExam, MasssModule, MasssTask } = require('../../models/masss')
+
 
 // ── GET /exams/module/:moduleId ───────────────────────────────────────────────
 exports.getByModule = async (req, res) => {
@@ -75,9 +76,10 @@ exports.create = async (req, res) => {
 
 // ── PUT /exams/:id ────────────────────────────────────────────────────────────
 exports.update = async (req, res) => {
-  try {
-    const { name, exam_type, due_date, weight, is_completed } = req.body
 
+  const { name, exam_type, due_date, weight, is_completed, task_ids } = req.body
+  try {
+    
     const exam = await MasssExam.findOneAndUpdate(
       { _id: req.params.id, userId: req.user.id },
       {
@@ -95,6 +97,22 @@ exports.update = async (req, res) => {
     if (!exam) {
       return res.status(404).json({ success: false, message: 'Exam not found' })
     }
+
+    if (Array.isArray(task_ids)) {
+      // Unlink all tasks currently pointing to this exam
+      await MasssTask.updateMany(
+        { examId: req.params.id, userId: req.user.id },
+        { $unset: { examId: '' } }
+      )
+      // Link the newly selected tasks
+      if (task_ids.length > 0) {
+        await MasssTask.updateMany(
+          { _id: { $in: task_ids }, userId: req.user.id },
+          { $set: { examId: req.params.id } }
+        )
+      }
+    }
+
 
     res.json({ success: true, data: exam })
   } catch (error) {

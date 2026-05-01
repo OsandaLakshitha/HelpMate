@@ -14,7 +14,7 @@ const PRIORITY_PILL_CLASSES = {
   low:    'border border-masss-mint text-masss-heading/40',
 }
 
-export const TaskRow = ({ task, onFocus, onComplete, onArchive, onEdit, moduleName }) => {
+export const TaskRow = ({ task, onFocus, onComplete, onArchive, onEdit, moduleName, examName }) => {
   const [menuOpen, setMenuOpen] = useState(false)
   const [confirmOpen, setConfirmOpen] = useState(false)
   const menuRef = useRef(null)
@@ -66,9 +66,14 @@ export const TaskRow = ({ task, onFocus, onComplete, onArchive, onEdit, moduleNa
           </span>
 
           {/* Module name */}
-          {moduleName && (
-            <span className="text-xs text-masss-heading/30">· {moduleName}</span>
-          )}
+         {moduleName && (
+  <span className="text-xs text-masss-heading/30">· {moduleName}</span>
+)}
+{examName && (
+  <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-masss-mint text-masss-accent">
+    {examName}
+  </span>
+)}
         </div>
       </div>
 
