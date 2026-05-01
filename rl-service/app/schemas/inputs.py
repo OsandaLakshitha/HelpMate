@@ -26,7 +26,7 @@ VALID_STATUSES = {"pending", "in_progress", "completed", "archived"}
 
 
 class TaskInput(BaseModel):
-    id: str 
+    id: str
     name: str
     priority: str
     difficulty: int
@@ -35,6 +35,7 @@ class TaskInput(BaseModel):
     sessions_count: int
     days_until: Optional[int] = None
     status: str = "pending"
+    missed_slots: List[str] = []
 
     @field_validator("priority")
     @classmethod

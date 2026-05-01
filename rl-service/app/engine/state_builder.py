@@ -97,7 +97,10 @@ class StateBuilder:
 
             # Status — now lowercase
             raw_status = str(self._safe_get(task, "status", "pending")).lower()
-            task_matrix[i, 5] = 1.0 if raw_status == "in_progress" else 0.0
+            missed_slots = self._safe_get(task, "missed_slots", []) or []
+            task_matrix[i, 5] = (
+                1.0 if raw_status == "in_progress" or len(missed_slots) > 0 else 0.0
+            )
 
             # Category — now lowercase with underscores
             cat_raw = "other"
