@@ -61,9 +61,17 @@ export const TaskRow = ({ task, onFocus, onComplete, onArchive, onEdit, moduleNa
           </span>
 
           {/* Sessions count */}
-          <span className="text-xs text-masss-heading/40">
-            Sessions {task.sessionsCount || 0}
-          </span>
+          {/* Sessions count */}
+          {(() => {
+            const done  = task.sessionsCount || 0
+            const total = task.estimatedPomodoros || task.estimated_pomodoros || 0
+            const left  = Math.max(0, total - done)
+            return (
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold border border-masss-mint text-masss-heading/50">
+                🍅 {done}/{total} · {left} left
+              </span>
+            )
+          })()}
 
           {/* Module name */}
          {moduleName && (
