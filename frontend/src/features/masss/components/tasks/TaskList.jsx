@@ -44,7 +44,7 @@ const [showCompleted, setShowCompleted] = React.useState(false)
   }
 
   return (
-    <div className="flex-1 overflow-y-auto pr-2">
+    <div className="flex-1 overflow-y-auto pr-2 pb-20" >
 
       {/* ── Active tasks ────────────────────────────────────────────────────── */}
       {activeTasks.length > 0 && (
