@@ -111,4 +111,11 @@ class RewardEngine:
         if str(status).lower() == "in_progress":
             reward += 5.0
 
+        # 9. Missed-slot urgency boost
+        # If task was scheduled in a previous slot but never started,
+        # treat it with same priority as an in_progress task
+        missed_slots = self._safe_get(task, "missed_slots", [])
+        if missed_slots and str(status).lower() == "pending":
+            reward += 5.0
+
         return reward

@@ -117,17 +117,22 @@ def generate_schedule(request: ScheduleRequest):
     best_slot = max(energy_map, key=energy_map.get) if energy_map else "morning"
 
     for task in tasks:
-        if task.get("status") == "in_progress" and task["id"] not in scheduled_ids:
+        missed_slots = task.get("missed_slots", [])
+        is_missed = missed_slots and task.get("status") == "pending"
+        is_in_progress = task.get("status") == "in_progress"
+
+        if (is_in_progress or is_missed) and str(task["id"]) not in scheduled_ids:
+            allocation = "sticky_rule" if is_in_progress else "missed_slot_recovery"
+
             result[best_slot].insert(
                 0,
                 {
                     "task_id": str(task["id"]),
                     "task_name": task["name"],
                     "slot": best_slot,
-                    "allocation_type": "sticky_rule",
+                    "allocation_type": allocation,
                 },
             )
             if result["strategy_used"] in ("heuristic_fallback", "priority_fallback"):
                 result["strategy_used"] = "rl_ppo"
-
     return result

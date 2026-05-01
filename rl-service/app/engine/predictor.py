@@ -123,4 +123,47 @@ class RLScheduler:
                 seen.add(item["task_id"])
                 schedule.append(item)
 
+        # Missed-slot sticky rule
+        # Force insert pending tasks that were scheduled before but never started
+        scheduled_ids = {item["task_id"] for item in schedule}
+
+        for task in tasks:
+            task_id = (
+                str(task.get("id"))
+                if isinstance(task, dict)
+                else str(getattr(task, "id", None))
+            )
+            missed_slots = (
+                task.get("missed_slots", [])
+                if isinstance(task, dict)
+                else getattr(task, "missed_slots", [])
+            )
+            status = (
+                task.get("status", "pending")
+                if isinstance(task, dict)
+                else getattr(task, "status", "pending")
+            )
+
+            if (
+                missed_slots
+                and str(status).lower() == "pending"
+                and task_id not in scheduled_ids
+            ):
+                t_name = (
+                    task.get("name")
+                    if isinstance(task, dict)
+                    else getattr(task, "name", "Unnamed Task")
+                )
+                schedule.insert(
+                    0,
+                    {
+                        "task_id": task_id,
+                        "task_name": t_name,
+                        "slot": "morning",  # will be overridden by schedule.py sticky logic
+                        "action_type": "MISSED_SLOT_RECOVERY",
+                        "intensity_context": 0.0,
+                    },
+                )
+                scheduled_ids.add(task_id)
+
         return schedule
