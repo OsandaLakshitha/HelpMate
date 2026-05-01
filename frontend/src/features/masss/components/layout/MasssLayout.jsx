@@ -18,7 +18,7 @@ const MasssLayoutInner = () => {
 
       <div
         className="flex flex-col flex-1 overflow-hidden transition-all duration-200"
-        style={{ marginLeft: '220px' }} // Adjusted to typical sidebar widths
+       style={{ marginLeft: sidebarCollapsed ? '60px' : '220px' }}// Adjusted to typical sidebar widths
       >
         {/* Hide TopBar if focus is active to match your "Pure" focus requirement */}
  <MassTopBar />
