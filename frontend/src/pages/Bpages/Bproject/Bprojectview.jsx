@@ -17,12 +17,14 @@ import DownloadIcon         from '@mui/icons-material/Download';
 import WorkspacesIcon       from '@mui/icons-material/Workspaces';
 import StarIcon             from '@mui/icons-material/Star';
 import AutoAwesomeIcon      from '@mui/icons-material/AutoAwesome';
+import BarChartIcon         from '@mui/icons-material/BarChart';
 import { DatePicker }          from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns }       from '@mui/x-date-pickers/AdapterDateFns';
 import axios from 'axios';
 import { API_URL } from '../../../config/api';
 import { useAuth } from '../../../context/AuthContext';
+import BProjectStats from '../../../components/Bcomponents/ProjectStats';
 
 // ── Colour tokens ─────────────────────────────────────────────────────────────
 const C = {
@@ -41,6 +43,11 @@ const C = {
   errorSoft:   '#FFF0F0',
   purple:      '#8B5CF6',
   purpleSoft:  '#F5F3FF',
+  // New colors for RAP specifics
+  info:        '#0EA5E9',
+  infoSoft:    '#F0F9FF',
+  urgent:      '#EA580C',
+  urgentSoft:  '#FFF7ED',
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -65,23 +72,121 @@ const daysLeft = (dueDate) => {
   return diff;
 };
 
-// ── Prediction badge ──────────────────────────────────────────────────────────
-const PredictionBadge = ({ status }) => {
+// ── Prediction badge (UPDATED FOR RAP STATUS) ────────────────────────────────
+const PredictionBadge = ({ 
+  status, 
+  rapStatus, 
+  tasksCompleted = 0, 
+  totalTasks = 0 
+}) => {
+  
+  // ── NEW LOGIC: Prioritize task completion state for simple progress indication ──
+  let finalStatus;
+  
+  if (totalTasks > 0 && tasksCompleted >= totalTasks) {
+    // ✅ All tasks completed
+    finalStatus = 'complete';
+  } else if (tasksCompleted > 0) {
+    // ✅ At least 1 task done, but not all → "Started"
+    finalStatus = 'started';
+  } else if (tasksCompleted === 0 && totalTasks > 0) {
+    // ✅ No tasks done yet, but tasks exist → "Not Started"
+    finalStatus = 'not-started';
+  } else {
+    // 🔄 Fallback to original RAP/status logic if no task data
+    finalStatus = rapStatus || status || 'not-started';
+  }
+
+  // ── Status Mapping ──────────────────────────────────────────────────────────
   const map = {
-    'on-track':    { label: 'On Track',    bg: C.successSoft, color: C.success,  border: C.success  },
-    'at-risk':     { label: 'At Risk',     bg: C.warningSoft, color: C.warning,  border: C.warning  },
-    'in-danger':   { label: 'In Danger',   bg: C.errorSoft,   color: C.error,    border: C.error    },
-    'not-started': { label: 'Not Started', bg: '#F3F4F6',     color: C.muted,    border: C.border   },
-    'complete':    { label: 'Complete',    bg: C.purpleSoft,  color: C.purple,   border: C.purple   },
+    // ── Progress States (NEW - Priority) ─────────────────────────────────────
+    'not-started': { 
+      label: 'Not Started', 
+      bg: '#F3F4F6', 
+      color: C.muted, 
+      border: C.border, 
+      icon: '📋' 
+    },
+    'started': { 
+      label: 'Started', 
+      bg: C.infoSoft, 
+      color: C.info, 
+      border: C.info, 
+      icon: '▶️' 
+    },
+    'complete': { 
+      label: 'Complete', 
+      bg: C.purpleSoft, 
+      color: C.purple, 
+      border: C.purple, 
+      icon: '🎉' 
+    },
+    
+    // ── Risk States (Fallback) ───────────────────────────────────────────────
+    'on-track': { 
+      label: 'On Track', 
+      bg: C.successSoft, 
+      color: C.success, 
+      border: C.success, 
+      icon: '✨' 
+    },
+    'at-risk': { 
+      label: 'At Risk', 
+      bg: C.warningSoft, 
+      color: C.warning, 
+      border: C.warning, 
+      icon: '⚠️' 
+    },
+    'in-danger': { 
+      label: 'In Danger', 
+      bg: C.errorSoft, 
+      color: C.error, 
+      border: C.error, 
+      icon: '🚨' 
+    },
+    
+    // ── RAP Specific States (Fallback) ───────────────────────────────────────
+    'on-track-fragile': { 
+      label: 'On Track', 
+      bg: C.infoSoft, 
+      color: C.info, 
+      border: C.info, 
+      icon: '⚡' 
+    },
+    'at-risk-recoverable': { 
+      label: 'Can Catch Up', 
+      bg: C.warningSoft, 
+      color: '#D97706', 
+      border: '#D97706', 
+      icon: '🔄' 
+    },
+    'danger-recoverable': { 
+      label: 'Urgent · Recover', 
+      bg: C.urgentSoft, 
+      color: C.urgent, 
+      border: C.urgent, 
+      icon: '⚡' 
+    },
   };
-  const s = map[status] || map['not-started'];
+
+  const s = map[finalStatus] || map['not-started'];
+
   return (
     <Box sx={{
-      px: 1.5, py: 0.5, borderRadius: 5,
-      bgcolor: s.bg, border: `1px solid ${s.border}`,
-      display: 'inline-flex', alignItems: 'center',
+      px: 1.5, 
+      py: 0.5, 
+      borderRadius: 5,
+      bgcolor: s.bg, 
+      border: `1px solid ${s.border}`,
+      display: 'inline-flex', 
+      alignItems: 'center', 
+      gap: 0.6,
+      whiteSpace: 'nowrap',
     }}>
-      <Typography fontSize={11} fontWeight={700} color={s.color}>{s.label}</Typography>
+      {s.icon && <Typography fontSize={12}>{s.icon}</Typography>}
+      <Typography fontSize={11} fontWeight={700} color={s.color}>
+        {s.label}
+      </Typography>
     </Box>
   );
 };
@@ -134,6 +239,7 @@ const ProjectView = () => {
   const [editOpen,   setEditOpen]   = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [closeOpen,  setCloseOpen]  = useState(false);
+  const [statsOpen,  setStatsOpen]  = useState(false);
 
   const [editForm, setEditForm] = useState({
     title: '', description: '', projectType: '', complexity: '', dueDate: null,
@@ -147,7 +253,7 @@ const ProjectView = () => {
     try {
       const [projRes, predRes] = await Promise.allSettled([
         axios.get(`${API_URL}/api/projects/${id}`,          { headers: { Authorization: `Bearer ${token}` } }),
-        axios.get(`${API_URL}/api/prediction/${id}/all`,    { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get(`${API_URL}/api/prediction/${id}`,        { headers: { Authorization: `Bearer ${token}` } }),
       ]);
 
       if (projRes.status === 'fulfilled') {
@@ -176,7 +282,9 @@ const ProjectView = () => {
       }
 
       if (predRes.status === 'fulfilled') {
-        setPredictions(predRes.value.data.predictions || []);
+        // Endpoint returns { prediction: {...} }, wrap in array for consistency
+        const prediction = predRes.value.data.prediction;
+        setPredictions(prediction ? [prediction] : []);
       }
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to load project');
@@ -230,14 +338,65 @@ const ProjectView = () => {
     }
   };
 
-  // ── Derived ────────────────────────────────────────────────────────────────
   const currentUserId  = user?._id || user?.id;
   const isCreator      = String(project?.creatorId) === String(currentUserId);
   const isClosed       = project?.status?.toLowerCase() === 'closed';
   const remaining      = daysLeft(project?.dueDate);
 
-  const getPrediction = (userId) =>
-    predictions.find(p => String(p.studentId?._id || p.studentId) === String(userId));
+  // Since predictions is now an array with just the current user's prediction
+  const currentPrediction = predictions?.[0] || null;
+  
+  const projectStatsProject = project && currentPrediction ? {
+    ...project,
+    projectId: project._id || project.projectId,
+    studentId: currentPrediction.studentId,
+    // ── Status fields ──────────────────────────────────────────────
+    rapStatus: currentPrediction.rapStatus || project.status?.toLowerCase() || 'not-started',
+    rapMessage: currentPrediction.rapMessage,
+    status: currentPrediction.status,
+    coldStart: currentPrediction.coldStart ?? false,
+    
+    // ── Task counts ────────────────────────────────────────────────
+    pendingTaskCount: currentPrediction.pendingTaskCount ?? 0,
+    totalTaskCount: currentPrediction.totalTaskCount ?? 0,
+    completedToday: currentPrediction.todayCompletedCount ?? 0,
+    dailyTarget: currentPrediction.dailyTarget ?? 0,
+    
+    // ── Formula fields (RAP Engine) ────────────────────────────────
+    deadlinePressure: currentPrediction.deadlinePressure ?? null,       // RCR [R1]
+    complexityCapacity: currentPrediction.complexityCapacity ?? null,   // [R4]
+    loadFactor: currentPrediction.loadFactor ?? 1.0,                    // [R5]
+    studentRatio: currentPrediction.studentRatio ?? null,               // SPI(t) [R2+R3]
+    projectedDaysNeeded: currentPrediction.projectedDaysNeeded ?? null, // TEAC [R2]
+    paceDelta: currentPrediction.paceDelta ?? null,                     // SV% [R1]
+    resilienceScore: currentPrediction.resilienceScore ?? null,         // [R7]
+    confidence: currentPrediction.confidence ?? 0.30,                   // [R6]
+    daysLeft: currentPrediction.daysLeft ?? null,
+    
+    // ── Progress fields ────────────────────────────────────────────
+    workCompletionPct: currentPrediction.workCompletionPct ?? 0,
+    timeElapsedPct: currentPrediction.timeElapsedPct ?? 0,
+    
+    // ── Data quality ───────────────────────────────────────────────
+    dataPointsUsed: currentPrediction.dataPointsUsed ?? 0,
+    isEstimated: currentPrediction.isEstimated ?? true,
+    capacityWarning: currentPrediction.capacityWarning,
+    activeProjects: currentPrediction.activeProjects ?? 1,
+    
+    // ── Flags ──────────────────────────────────────────────────────
+    isOverdue: project.dueDate ? new Date(project.dueDate) < new Date() : false,
+  } : project ? {
+    ...project,
+    projectId: project._id || project.projectId,
+    rapStatus: project.status?.toLowerCase() || 'not-started',
+    isOverdue: project.dueDate ? new Date(project.dueDate) < new Date() : false,
+    coldStart: false,
+  } : null;
+
+  const statsTargetSummary = {
+    met: projectStatsProject?.dailyTarget > 0 && projectStatsProject?.completedToday >= projectStatsProject?.dailyTarget ? 1 : 0,
+    missed: projectStatsProject?.dailyTarget > 0 && projectStatsProject?.completedToday > 0 && projectStatsProject?.completedToday < projectStatsProject?.dailyTarget ? 1 : 0,
+  };
 
   // ── Loading / error states ─────────────────────────────────────────────────
   if (loading) return (
@@ -258,12 +417,53 @@ const ProjectView = () => {
       <Container maxWidth="md">
 
         {/* ── Top nav ── */}
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
-          <IconButton onClick={() => navigate('/user/projects')} size="small"
-            sx={{ border: `1px solid ${C.border}`, bgcolor: C.surface }}>
-            <ArrowBackIcon fontSize="small" />
-          </IconButton>
-          <Typography fontSize={13} color={C.muted}>Back to Projects</Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <IconButton onClick={() => navigate('/user/projects')} size="small"
+              sx={{ border: `1px solid ${C.border}`, bgcolor: C.surface }}>
+              <ArrowBackIcon fontSize="small" />
+            </IconButton>
+            <Typography fontSize={13} color={C.muted}>Back to Projects</Typography>
+          </Box>
+          <Button
+            variant="contained"
+            size="large"
+            startIcon={<AutoAwesomeIcon />}
+            onClick={() => navigate(`/user/generate-tasks/${id}`)}
+            sx={{
+              bgcolor: '#13a2a2',
+              color: '#fff',
+              fontWeight: 600,
+              fontSize: 13,
+              borderRadius: 2,
+              px: 2,
+              marginLeft:45,
+              textTransform: 'none',
+              boxShadow: '0 2px 10px rgba(19,162,162,0.25)',
+              '&:hover': { bgcolor: '#035757', boxShadow: '0 4px 16px rgba(19,162,162,0.35)' },
+            }}
+          >
+            Generate Your Tasks
+          </Button>
+          <Button
+            onClick={() => setStatsOpen(true)}
+            startIcon={<BarChartIcon />}
+            size="small"
+            variant="contained"
+            sx={{
+              bgcolor: '#13a2a2',
+              color: '#fff',
+              fontWeight: 600,
+              fontSize: 13,
+              borderRadius: 2,
+              px: 2,
+              textTransform: 'none',
+              boxShadow: '0 2px 10px rgba(19,162,162,0.25)',
+              '&:hover': { bgcolor: '#035757', boxShadow: '0 4px 16px rgba(19,162,162,0.35)' },
+            }}
+          >
+            View Statistics
+          </Button>
         </Box>
 
         {/* ── Alerts ── */}
@@ -434,7 +634,10 @@ const ProjectView = () => {
                 const fullName    = `${firstName} ${lastName}`.trim() || member.email || 'Unknown';
                 const email       = member.userId?.email || member.email || '';
                 const isMemberCreator = String(uid) === String(project.creatorId);
-                const prediction  = getPrediction(uid);
+                const isCurrentUser = String(uid) === String(currentUserId);
+                
+                // Only show prediction for current user
+                const prediction = isCurrentUser ? currentPrediction : null;
 
                 return (
                   <Box
@@ -475,7 +678,12 @@ const ProjectView = () => {
                       <Typography fontSize={11} color={C.muted} mb={0.5}>
                         {member.componentName || 'No role set'}
                       </Typography>
-                      <PredictionBadge status={prediction?.status || 'not-started'} />
+                      
+                      {/* ✅ FIXED: Pass both status and rapStatus */}
+                      <PredictionBadge 
+                        status={prediction?.status || 'not-started'} 
+                        rapStatus={prediction?.rapStatus} 
+                      />
                     </Box>
                   </Box>
                 );
@@ -484,18 +692,7 @@ const ProjectView = () => {
           )}
         </Section>
 
-        {/* ── My Workspace button ── */}
-        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 1 }}>
-          <Button
-  variant="contained"
-  size="large"
-  startIcon={<AutoAwesomeIcon />}
-  onClick={() => navigate(`/user/generate-tasks/${id}`)}
-  sx={{ px:5, py:1.5, fontWeight:700, borderRadius:3, bgcolor:'#4361EE' }}
->
-  Generate Your Tasks
-</Button>
-        </Box>
+        
 
       </Container>
 
@@ -568,6 +765,17 @@ const ProjectView = () => {
         <DialogActions sx={{ px: 3, pb: 2 }}>
           <Button onClick={() => setDeleteOpen(false)}>Cancel</Button>
           <Button onClick={handleDelete} variant="contained" color="error">Delete Permanently</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* ── Project Stats Modal ── */}
+      <Dialog open={statsOpen} onClose={() => setStatsOpen(false)} maxWidth="lg" fullWidth>
+        <DialogTitle sx={{ fontWeight: 700, fontSize: 18 }}>Project Statistics</DialogTitle>
+        <DialogContent sx={{ pt: 2 }}>
+          <BProjectStats projects={projectStatsProject ? [projectStatsProject] : []} targetSummary={statsTargetSummary} />
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setStatsOpen(false)} variant="contained">Close</Button>
         </DialogActions>
       </Dialog>
 

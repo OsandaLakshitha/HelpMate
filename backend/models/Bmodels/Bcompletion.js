@@ -50,11 +50,49 @@ const BCompletionSchema = new Schema(
 
     // PSS value after this completion was added
     pssAfterThis: { type: Number, default: null },
+
+    // ── NEW: Bulk completion detection fields ─────────────────────────────
+    // isBulk: true if another task was completed within 10 minutes
+    // This indicates student clicked through multiple tasks rapidly
+    // rather than genuinely completing them over time
+    isBulk: { type: Boolean, default: false },
+
+    // isPastTask: true if task due date was already in the past
+    // when student marked it complete
+    isPastTask: { type: Boolean, default: false },
+
+    // countForPSS: false if bulk completion
+    // Bulk completions do not reflect real speed — excluded from PSS
+    countForPSS: { type: Boolean, default: true },
+
+    // countForColdStart: false if bulk AND future task
+    // Bulk past tasks still count (student was catching up on real work)
+    // Bulk future tasks do not count (gaming the system)
+    countForColdStart: { type: Boolean, default: true },
+
+    // ── Anomaly detection fields (v4.1) ───────────────────────────────────
+    // Set by anomalyDetector.js — never blocks a completion, just flags it
+    anomalyDetected: { type: Boolean, default: false },
+    // true if any pattern was found
+
+    anomalyPatterns: [{ type: String }],
+    // Array of pattern types detected e.g. ['BURST', 'VELOCITY_SPIKE']
+    // Possible values: BURST | SESSION_FLOOD | VELOCITY_SPIKE |
+    //                  FIRST_DAY_DUMP | NIGHT_SESSION | SEQUENTIAL_SKIP
+
+    anomalySeverity: {
+      type:    String,
+      enum:    ['low', 'medium', 'high', null],
+      default: null,
+    },
+    // Worst severity across all detected patterns
   },
   { timestamps: true, collection: 'BCompletions' }
 );
 
 BCompletionSchema.index({ studentId: 1, createdAt: -1 });
 BCompletionSchema.index({ studentId: 1, projectId: 1 });
+BCompletionSchema.index({ studentId: 1, countForPSS: 1 });        // ← NEW: fast PSS queries
+BCompletionSchema.index({ studentId: 1, countForColdStart: 1 });   // ← NEW: fast cold start queries
 
 export default model('BCompletion', BCompletionSchema);

@@ -30,6 +30,10 @@ const ProjectSchema = new Schema(
     // ── NEW: Group plan ───────────────────────────────────────────────────
     approach:     { type: String, default: null },  // what group plans to build
 
+    // ── NEW: Project mode ─────────────────────────────────────────────────
+    projectMode:  { type: String, enum: ['individual', 'group'], default: 'group' }, // individual or group project
+
+    testMode: { type: Boolean, default: false },
     // ── NEW: Claude-generated summary ─────────────────────────────────────
     generatedDesc: { type: String, default: null }, // 2-3 sentence summary
   },

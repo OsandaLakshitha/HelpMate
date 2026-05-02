@@ -1,16 +1,20 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
-import dotenv from 'dotenv';
-dotenv.config();   // ← add this
+import Groq from "groq-sdk";
+import dotenv from "dotenv";
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+dotenv.config();
 
-async function test() {
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models?key=${process.env.GEMINI_API_KEY}`
-  );
+const groq = new Groq({
+  apiKey: process.env.GROQ_API_KEY
+});
 
-  const data = await response.json();
-  console.log(data);
+async function testKey() {
+  try {
+    const models = await groq.models.list();
+    console.log("Key is valid. Models accessible:");
+    models.data.forEach(m => console.log(m.id));
+  } catch (err) {
+    console.error("Key error:", err.message);
+  }
 }
 
-test();
+testKey();

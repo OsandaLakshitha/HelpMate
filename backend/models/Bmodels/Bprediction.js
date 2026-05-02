@@ -1,70 +1,167 @@
 import mongoose from 'mongoose';
 const { Schema, model, Types } = mongoose;
 
-// ── Purpose ────────────────────────────────────────────────────────────────
-// One record per student per project.
-// Always upserted — never create a second document for same student+project.
-// Updated when: task completed, task overdue (cron), tasks first generated.
+// ── v6 — adds new trigger types for dynamic prediction updates
+//
+// NEW TRIGGER TYPES ADDED:
+//   'task-created'    — new task added to project → pendingTaskCount changed
+//   'task-updated'    — task complexity/dueDate/assignee changed
+//   'task-reassigned' — task moved to different student → both students affected
+//   'status-updated'  — task status changed (not Completed — that uses task-completed)
+//   'project-updated' — project dueDate or complexity changed → all members affected
+//
+// v6.1 — adds 3 fields from research formula implementation:
+//   'deadlinePressure'    — remainingTasks / daysLeft (core research formula)
+//   'complexityCapacity'  — max realistic tasks/day for this project difficulty
+//   'totalTaskCount'      — total tasks assigned to this student in the project
 
 const BPredictionSchema = new Schema(
   {
     studentId: { type: Types.ObjectId, ref: 'User',     required: true },
     projectId: { type: Types.ObjectId, ref: 'BProject', required: true },
 
-    // Main output
+    // ── Main status (v4 unchanged) ──────────────────────────────────────────
     status: {
       type:    String,
       enum:    ['on-track', 'at-risk', 'in-danger', 'not-started', 'complete'],
       default: 'not-started',
-      // not-started = tasks exist but no completions yet
-      // on-track    = CS >= 100
-      // at-risk     = CS 80-99
-      // in-danger   = CS < 80
-      // complete    = all tasks done
+    },
+    longTermStatus: {
+      type:    String,
+      enum:    ['on-track', 'at-risk', 'in-danger', 'not-started', 'complete', null],
+      default: null,
+    },
+    dailyStatus: {
+      type:    String,
+      enum:    ['on-track', 'at-risk', 'in-danger', null],
+      default: null,
     },
 
-    completionScore:  { type: Number, default: null },
-    // The CS value driving the status above
+    // ── v5: RAP Status — 2-axis combined label ──────────────────────────────
+    rapStatus: {
+      type:    String,
+      enum:    [
+        'on-track',
+        'on-track-fragile',
+        'at-risk-recoverable',
+        'at-risk',
+        'danger-recoverable',
+        'in-danger',
+        'complete',
+        'not-started',
+        null,
+      ],
+      default: null,
+    },
 
-    pssAtCalculation: { type: Number, default: null },
-    // PSS snapshot used when this was computed
+    // ── v5: Human-readable RAP explanation ──────────────────────────────────
+    rapMessage: { type: String, default: null },
 
-    // Projection
+    // ── Scores (v4 unchanged) ───────────────────────────────────────────────
+    trajectoryScore: { type: Number, default: null },
+    completionScore: { type: Number, default: null },
+
+    // ── v5: Resilience Score 0–100 ─────────────────────────────────────────
+    resilienceScore: { type: Number,  default: null },
+    isResilient:     { type: Boolean, default: null },
+
+    // ── v5: Complexity Feasibility Gate ─────────────────────────────────────
+    complexityFeasibility: {
+      type:    String,
+      enum:    ['possible', 'constrained', 'impossible', null],
+      default: null,
+    },
+
+    // ── v5: Recovery projection ─────────────────────────────────────────────
+    burstRateNeeded:     { type: Number, default: null },
+    burstFeasibilityPct: { type: Number, default: null },
+    timeLeftPct:         { type: Number, default: null },
+
+    // ── Ratio breakdown (v4 unchanged) ──────────────────────────────────────
+    studentRatio: { type: Number, default: null },
+    projectRatio: { type: Number, default: null },
+    globalRatio:  { type: Number, default: null },
+    dataSource:   {
+      type:    String,
+      enum:    ['global', 'blended', 'project', null],
+      default: null,
+    },
+
+    // ── Daily target (v4 unchanged) ─────────────────────────────────────────
+    dailyTarget:         { type: Number, default: null },
+    requiredRate:        { type: Number, default: null },
+    todayCompletedCount: { type: Number, default: 0 },
+    dailyRate:           { type: Number, default: null },
+
+    // ── Multi-project load (v4 unchanged) ───────────────────────────────────
+    loadFactor:     { type: Number, default: 1.0 },
+    activeProjects: { type: Number, default: 1 },
+
+    // ── Projection (v4 unchanged) ───────────────────────────────────────────
     projectedFinishDate: { type: Date,   default: null },
     daysLeft:            { type: Number, default: null },
     projectedDaysNeeded: { type: Number, default: null },
-    bufferDays:          { type: Number, default: null },
-    // positive = finishing early   negative = will miss deadline
 
-    // Pace analysis
+    // ── Progress (v4 unchanged) ─────────────────────────────────────────────
+    pendingTaskCount:  { type: Number, default: null },
     workCompletionPct: { type: Number, default: null },
-    // % of complexity weight completed
     timeElapsedPct:    { type: Number, default: null },
-    // % of assignment duration elapsed
     paceDelta:         { type: Number, default: null },
-    // workCompletionPct − timeElapsedPct
-    // positive = ahead   negative = behind
 
-    // Multi-project context
-    concurrentProjects:     { type: Number,  default: 0    },
-    timeSharePct:           { type: Number,  default: 100  },
-    multiProjectDowngraded: { type: Boolean, default: false },
+    // ── Warnings (v4 unchanged) ─────────────────────────────────────────────
+    capacityWarning: { type: String, default: null },
 
-    // Overdue tracking
-    overdueTaskCount: { type: Number, default: 0 },
-    totalOverdueDays: { type: Number, default: 0 },
+    // ── Cold start flags (v4 unchanged) ─────────────────────────────────────
+    coldStart:         { type: Boolean, default: true },
+    newProjectPending: { type: Boolean, default: false },
+    completionsNeeded: { type: Number,  default: 4 },
 
-    // Confidence
+    // ── Confidence (v4 unchanged) ───────────────────────────────────────────
     confidence:     { type: Number,  default: 0.30 },
-    // Math.min(0.95, 0.30 + dataPoints × 0.05)
-    dataPointsUsed: { type: Number,  default: 0    },
-    isEstimated:    { type: Boolean, default: true  },
-    // true when dataPoints < 3 — show low confidence badge on UI
+    dataPointsUsed: { type: Number,  default: 0 },
+    isEstimated:    { type: Boolean, default: true },
 
-    // Trigger metadata
+    // ── NEW v6.1: Research formula fields ───────────────────────────────────
+    //
+    // deadlinePressure — the core formula from the research:
+    //   deadlinePressure = pendingTaskCount / daysLeft
+    //   Tells us: tasks per day required to finish on time
+    //   Example: 6 tasks left, 2 days → pressure = 3.0 (very high)
+    //            6 tasks left, 6 days → pressure = 1.0 (comfortable)
+    deadlinePressure: { type: Number, default: null },
+
+    // complexityCapacity — maximum realistic tasks/day for this project type
+    //   Low    = 2.0 tasks/day
+    //   Medium = 1.5 tasks/day
+    //   High   = 1.0 tasks/day
+    // Used to judge whether deadlinePressure is achievable
+    complexityCapacity: { type: Number, default: null },
+
+    // totalTaskCount — total tasks assigned to this student in the project
+    // Used to calculate workCompletionPct = doneTasks / totalTaskCount
+    totalTaskCount: { type: Number, default: null },
+
+    // ── Trigger metadata — v6: added 5 new trigger types ────────────────────
     lastTriggerType: {
       type:    String,
-      enum:    ['task-completed', 'task-overdue', 'initial', 'manual'],
+      enum:    [
+        // ── Original triggers (v4–v5) ──
+        'task-completed',
+        'task-overdue',
+        'initial',
+        'manual',
+        'test',
+        'daily-refresh',
+        'rebalance',
+        // ── NEW triggers (v6) ──
+        'task-created',
+        'task-updated',
+        'task-reassigned',
+        'status-updated',
+        'project-updated',
+        'project-deleted',  // ✅ ADDED
+    'project-closed',
+      ],
       default: 'initial',
     },
     lastTriggerDate:   { type: Date,           default: null },
@@ -73,7 +170,6 @@ const BPredictionSchema = new Schema(
   { timestamps: true, collection: 'BPredictions' }
 );
 
-// Enforced at DB level — always use updateOne with upsert:true
 BPredictionSchema.index({ studentId: 1, projectId: 1 }, { unique: true });
 
-export default model('BPrediction', BPredictionSchema);
+export default mongoose.models.BPrediction || model('BPrediction', BPredictionSchema);

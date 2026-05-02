@@ -8,6 +8,7 @@ import {
   updateProject,
   deleteProject,
   closeProject,
+  getProjectStats,
 } from '../../controllers/Bcontrollers/projectController.js';
 
 const router = Router();
@@ -19,5 +20,8 @@ router.get('/:id',         protect, getProject);
 router.patch('/:id',       protect, updateProject);
 router.delete('/:id',      protect, deleteProject);
 router.post('/:id/close',  protect, closeProject);
+
+router.get('/:id/stats', protect, getProjectStats);
+
 
 export default router;

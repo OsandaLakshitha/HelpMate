@@ -7,7 +7,8 @@ import {
   Container, Typography, TextField, Button, Box,
   MenuItem, FormControl, InputLabel, Select,
   Paper, Divider, Chip, CircularProgress, Alert,
-  IconButton, Grid, Avatar, LinearProgress
+  IconButton, Grid, Avatar, LinearProgress,
+  FormControlLabel, Switch
 } from '@mui/material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
@@ -90,6 +91,7 @@ const CreateProject = () => {
     projectType: 'Documentation',
     dueDate:     null,
     members:     [],
+    projectMode: 'group', // 'individual' or 'group'
   });
 
   const [creatorComponent, setCreatorComponent] = useState('');
@@ -106,11 +108,17 @@ const CreateProject = () => {
     if (formData.title.trim().length > 100) e.title       = 'Title must be under 100 characters';
     if (!formData.dueDate)               e.dueDate        = 'Due date is required';
     if (formData.dueDate && new Date(formData.dueDate) <= new Date()) e.dueDate = 'Due date must be in the future';
-    if (!creatorComponent.trim())        e.creatorComponent = 'Your component/role is required';
-    if (!formData.approach.trim())       e.approach       = 'Please describe your group\'s plan';
+    
+    if (formData.projectMode === 'individual') {
+      if (!creatorComponent.trim())        e.creatorComponent = 'Your component/role is required';
+    } else {
+      if (!creatorComponent.trim())        e.creatorComponent = 'Your component/role is required';
+      if (!formData.approach.trim())       e.approach       = 'Please describe your group\'s plan';
+      if (formData.members.length === 0)   e.members        = 'Add at least one other team member';
+    }
+    
     if (!pdfFile)                        e.pdf            = 'Assignment PDF is required';
-    if (formData.members.length === 0)   e.members        = 'Add at least one other team member';
-    //if (formData.members.length > 3)     e.members        = 'Maximum 3 additional members (4 total including you)';
+    
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -218,8 +226,37 @@ const CreateProject = () => {
       fd.append('complexity',  formData.complexity);
       fd.append('projectType', formData.projectType);
       fd.append('dueDate',     formData.dueDate.toISOString());
-      fd.append('members',     JSON.stringify(allMembers));
-      fd.append('memberIds',   JSON.stringify(allMembers.map(m => m.userId)));
+      fd.append('projectMode', formData.projectMode);
+      
+      if (formData.projectMode === 'individual') {
+        // For individual projects, only include creator
+        const individualMembers = [
+          {
+            userId:        user._id || user.id,
+            email:         user.email,
+            name:          `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email,
+            componentName: creatorComponent,
+            verified:      true,
+          },
+        ];
+        fd.append('members',     JSON.stringify(individualMembers));
+        fd.append('memberIds',   JSON.stringify(individualMembers.map(m => m.userId)));
+      } else {
+        // For group projects, include all members
+        const allMembers = [
+          {
+            userId:        user._id || user.id,
+            email:         user.email,
+            name:          `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email,
+            componentName: creatorComponent,
+            verified:      true,
+          },
+          ...formData.members,
+        ];
+        fd.append('members',     JSON.stringify(allMembers));
+        fd.append('memberIds',   JSON.stringify(allMembers.map(m => m.userId)));
+      }
+      
       if (pdfFile) fd.append('assignmentPdf', pdfFile);
 
       const res = await axios.post(`${API_URL}/api/projects`, fd, {
@@ -229,7 +266,7 @@ const CreateProject = () => {
 
       if (res.data.success) {
         setSuccess('Project created successfully! Redirecting...');
-        setTimeout(() => navigate(`/project/${res.data.project._id}`), 1500);
+        setTimeout(() => navigate('/user/projects'), 1500);
       } else {
         setError(res.data.message || 'Failed to create project');
       }
@@ -256,7 +293,7 @@ const CreateProject = () => {
             Create New Project
           </Typography>
           <Typography color={C.muted} mt={0.5}>
-            Fill in the details below to set up your group assignment project.
+            Fill in the details below to set up your {formData.projectMode === 'individual' ? 'individual' : 'group'} assignment project.
           </Typography>
         </Box>
 
@@ -268,6 +305,36 @@ const CreateProject = () => {
 
           {/* ── Section 1: Project Details ── */}
           <Section icon={<AssignmentIcon />} title="Project Details" subtitle="Basic information about your assignment">
+
+            {/* Project Mode Toggle */}
+            <Box sx={{ mb: 3, p: 2, bgcolor: C.bg, borderRadius: 2, border: `1px solid ${C.border}` }}>
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={formData.projectMode === 'individual'}
+                    onChange={(e) => {
+                      const newMode = e.target.checked ? 'individual' : 'group';
+                      setFormData(prev => ({ ...prev, projectMode: newMode }));
+                      // Clear members when switching to individual
+                      if (newMode === 'individual') {
+                        setFormData(prev => ({ ...prev, members: [] }));
+                      }
+                    }}
+                    sx={{ '& .MuiSwitch-switchBase.Mui-checked': { color: C.primary } }}
+                  />
+                }
+                label={
+                  <Typography fontWeight={600} color={C.text}>
+                    {formData.projectMode === 'individual' ? 'Individual Project' : 'Group Project'}
+                  </Typography>
+                }
+              />
+              <Typography variant="caption" color={C.muted} sx={{ display: 'block', mt: 0.5 }}>
+                {formData.projectMode === 'individual' 
+                  ? 'Only you will work on this project' 
+                  : 'Collaborate with team members on this project'}
+              </Typography>
+            </Box>
 
             <TextField
               fullWidth required
@@ -281,27 +348,31 @@ const CreateProject = () => {
               sx={{ mb: 2.5 }}
             />
 
-            <TextField
-              fullWidth multiline rows={3}
-              label="Description (Optional)"
-              name="description"
-              value={formData.description}
-              onChange={handleChange}
-              placeholder="Brief overview of the project..."
-              sx={{ mb: 2.5 }}
-            />
+            {formData.projectMode === 'group' && (
+              <TextField
+                fullWidth multiline rows={3}
+                label="Description (Optional)"
+                name="description"
+                value={formData.description}
+                onChange={handleChange}
+                placeholder="Brief overview of the project..."
+                sx={{ mb: 2.5 }}
+              />
+            )}
 
-            <TextField
-              fullWidth required multiline rows={3}
-              label="Your Group's Approach"
-              name="approach"
-              value={formData.approach}
-              onChange={handleChange}
-              error={!!errors.approach}
-              helperText={errors.approach || "What does your group plan to build or research? This helps generate better tasks."}
-              placeholder="e.g., We plan to build a web application that tracks student attendance using facial recognition..."
-              sx={{ mb: 2.5 }}
-            />
+            {formData.projectMode === 'group' && (
+              <TextField
+                fullWidth required multiline rows={3}
+                label="Your Group's Approach"
+                name="approach"
+                value={formData.approach}
+                onChange={handleChange}
+                error={!!errors.approach}
+                helperText={errors.approach || "What does your group plan to build or research? This helps generate better tasks."}
+                placeholder="e.g., We plan to build a web application that tracks student attendance using facial recognition..."
+                sx={{ mb: 2.5 }}
+              />
+            )}
 
             <Grid container spacing={2}>
               <Grid item xs={12} sm={4}>
@@ -421,154 +492,206 @@ const CreateProject = () => {
           </Section>
 
           {/* ── Section 3: Team Members ── */}
-          <Section
-            icon={<GroupsIcon />}
-            title="Team Members"
-            subtitle={`${formData.members.length + 1} members — you + teammates`}
-          >
-
-            {/* Creator card — always first, cannot be removed */}
-            <Box
-              sx={{
-                display:       'flex',
-                alignItems:    'center',
-                gap:           2,
-                p:             2,
-                mb:            2,
-                border:        `2px solid ${C.primary}`,
-                borderRadius:  2,
-                bgcolor:       C.primarySoft,
-              }}
+          {formData.projectMode === 'group' && (
+            <Section
+              icon={<GroupsIcon />}
+              title="Team Members"
+              subtitle={`${formData.members.length + 1} members — you + teammates`}
             >
-              <Avatar sx={{ bgcolor: avatarColor(user?.email || ''), width: 40, height: 40, fontSize: 14 }}>
-                {getInitials(`${user?.firstName || ''} ${user?.lastName || ''}`)}
-              </Avatar>
-              <Box sx={{ flex: 1 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Typography fontWeight={700} fontSize={14} color={C.text}>
-                    {user?.firstName} {user?.lastName}
-                  </Typography>
-                  <Chip label="You (Creator)" size="small" color="primary" sx={{ height: 20, fontSize: 11 }} />
-                </Box>
-                <Typography fontSize={12} color={C.muted}>{user?.email}</Typography>
-              </Box>
-              <TextField
-                required
-                size="small"
-                label="Your Component / Role"
-                value={creatorComponent}
-                onChange={(e) => {
-                  setCreatorComponent(e.target.value);
-                  setErrors(prev => ({ ...prev, creatorComponent: '' }));
-                }}
-                error={!!errors.creatorComponent}
-                helperText={errors.creatorComponent}
-                placeholder="e.g. Backend Developer"
-                sx={{ minWidth: 220 }}
-              />
-            </Box>
 
-            {/* Added members list */}
-            {formData.members.map((member, i) => (
+              {/* Creator card — always first, cannot be removed */}
               <Box
-                key={i}
                 sx={{
-                  display:      'flex',
-                  alignItems:   'center',
-                  gap:          2,
-                  p:            2,
-                  mb:           1.5,
-                  border:       `1px solid ${C.border}`,
-                  borderRadius: 2,
-                  bgcolor:      C.surface,
+                  display:       'flex',
+                  alignItems:    'center',
+                  gap:           2,
+                  p:             2,
+                  mb:            2,
+                  border:        `2px solid ${C.primary}`,
+                  borderRadius:  2,
+                  bgcolor:       C.primarySoft,
                 }}
               >
-                <Avatar sx={{ bgcolor: avatarColor(member.email), width: 40, height: 40, fontSize: 14 }}>
-                  {getInitials(member.name)}
+                <Avatar sx={{ bgcolor: avatarColor(user?.email || ''), width: 40, height: 40, fontSize: 14 }}>
+                  {getInitials(`${user?.firstName || ''} ${user?.lastName || ''}`)}
                 </Avatar>
                 <Box sx={{ flex: 1 }}>
-                  <Typography fontWeight={600} fontSize={14} color={C.text}>{member.name}</Typography>
-                  <Typography fontSize={12} color={C.muted}>{member.email}</Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Typography fontWeight={700} fontSize={14} color={C.text}>
+                      {user?.firstName} {user?.lastName}
+                    </Typography>
+                    <Chip label="You (Creator)" size="small" color="primary" sx={{ height: 20, fontSize: 11 }} />
+                  </Box>
+                  <Typography fontSize={12} color={C.muted}>{user?.email}</Typography>
                 </Box>
-                <Chip
-                  label={member.componentName || 'No role set'}
+                <TextField
+                  required
                   size="small"
-                  variant="outlined"
-                  sx={{ fontSize: 11 }}
+                  label="Your Component / Role"
+                  value={creatorComponent}
+                  onChange={(e) => {
+                    setCreatorComponent(e.target.value);
+                    setErrors(prev => ({ ...prev, creatorComponent: '' }));
+                  }}
+                  error={!!errors.creatorComponent}
+                  helperText={errors.creatorComponent}
+                  placeholder="e.g. Backend Developer"
+                  sx={{ minWidth: 220 }}
                 />
-                <Chip icon={<VerifiedIcon />} label="Verified" color="success" size="small" variant="outlined" sx={{ fontSize: 11 }} />
-                <IconButton size="small" color="error" onClick={() => removeMember(member.email)}>
-                  <DeleteIcon fontSize="small" />
-                </IconButton>
               </Box>
-            ))}
 
-            {/* Add member form */}
-            {formData.members.length < 3 && (
-              <Box
-                sx={{
-                  mt:           2,
-                  p:            2.5,
-                  border:       `1px dashed ${errors.members ? C.error : C.border}`,
-                  borderRadius: 2,
-                  bgcolor:      C.bg,
-                }}
-              >
-                <Typography fontSize={13} fontWeight={600} color={C.muted} mb={1.5}>
-                  Add Team Member
-                </Typography>
-                <Grid container spacing={1.5} alignItems="flex-start">
-                  <Grid item xs={12} sm={5}>
-                    <TextField
-                      fullWidth size="small"
-                      label="Email address"
-                      type="email"
-                      value={memberForm.email}
-                      onChange={(e) => {
-                        setMemberForm(prev => ({ ...prev, email: e.target.value }));
-                        setMemberError('');
-                      }}
-                      placeholder="teammate@example.com"
-                      error={!!memberError}
-                    />
-                  </Grid>
-                  <Grid item xs={12} sm={5}>
-                    <TextField
-                      fullWidth size="small"
-                      label="Component / Role"
-                      value={memberForm.componentName}
-                      onChange={(e) => setMemberForm(prev => ({ ...prev, componentName: e.target.value }))}
-                      placeholder="e.g. Frontend Developer"
-                    />
-                  </Grid>
-                  <Grid item xs={12} sm={2}>
-                    <Button
-                      fullWidth
-                      variant="contained"
-                      onClick={addMember}
-                      disabled={!memberForm.email || memberLoading}
-                      sx={{ height: 40, bgcolor: C.primary, '&:hover': { bgcolor: '#3451d1' } }}
-                    >
-                      {memberLoading
-                        ? <CircularProgress size={18} sx={{ color: '#fff' }} />
-                        : <AddIcon />
-                      }
-                    </Button>
-                  </Grid>
-                </Grid>
+              {/* Added members list */}
+              {formData.members.map((member, i) => (
+                <Box
+                  key={i}
+                  sx={{
+                    display:      'flex',
+                    alignItems:   'center',
+                    gap:          2,
+                    p:            2,
+                    mb:           1.5,
+                    border:       `1px solid ${C.border}`,
+                    borderRadius: 2,
+                    bgcolor:      C.surface,
+                  }}
+                >
+                  <Avatar sx={{ bgcolor: avatarColor(member.email), width: 40, height: 40, fontSize: 14 }}>
+                    {getInitials(member.name)}
+                  </Avatar>
+                  <Box sx={{ flex: 1 }}>
+                    <Typography fontWeight={600} fontSize={14} color={C.text}>{member.name}</Typography>
+                    <Typography fontSize={12} color={C.muted}>{member.email}</Typography>
+                  </Box>
+                  <Chip
+                    label={member.componentName || 'No role set'}
+                    size="small"
+                    variant="outlined"
+                    sx={{ fontSize: 11 }}
+                  />
+                  <Chip icon={<VerifiedIcon />} label="Verified" color="success" size="small" variant="outlined" sx={{ fontSize: 11 }} />
+                  <IconButton size="small" color="error" onClick={() => removeMember(member.email)}>
+                    <DeleteIcon fontSize="small" />
+                  </IconButton>
+                </Box>
+              ))}
 
-                {memberError && (
-                  <Typography fontSize={12} color={C.error} mt={1}>{memberError}</Typography>
-                )}
-              </Box>
-            )}
+              {/* Add member form */}
+              {formData.members.length < 3 && (
+                <Box
+                  sx={{
+                    mt:           2,
+                    p:            2.5,
+                    border:       `1px dashed ${errors.members ? C.error : C.border}`,
+                    borderRadius: 2,
+                    bgcolor:      C.bg,
+                  }}
+                >
+                  <Typography fontSize={13} fontWeight={600} color={C.muted} mb={1.5}>
+                    Add Team Member
+                  </Typography>
+                  <Grid container spacing={1.5} alignItems="flex-start">
+                    <Grid item xs={12} sm={5}>
+                      <TextField
+                        fullWidth size="small"
+                        label="Email address"
+                        type="email"
+                        value={memberForm.email}
+                        onChange={(e) => {
+                          setMemberForm(prev => ({ ...prev, email: e.target.value }));
+                          setMemberError('');
+                        }}
+                        placeholder="teammate@example.com"
+                        error={!!memberError}
+                      />
+                    </Grid>
+                    <Grid item xs={12} sm={5}>
+                      <TextField
+                        fullWidth size="small"
+                        label="Component / Role"
+                        value={memberForm.componentName}
+                        onChange={(e) => setMemberForm(prev => ({ ...prev, componentName: e.target.value }))}
+                        placeholder="e.g. Frontend Developer"
+                      />
+                    </Grid>
+                    <Grid item xs={12} sm={2}>
+                      <Button
+                        fullWidth
+                        variant="contained"
+                        onClick={addMember}
+                        disabled={!memberForm.email || memberLoading}
+                        sx={{ height: 40, bgcolor: C.primary, '&:hover': { bgcolor: '#3451d1' } }}
+                      >
+                        {memberLoading
+                          ? <CircularProgress size={18} sx={{ color: '#fff' }} />
+                          : <AddIcon />
+                        }
+                      </Button>
+                    </Grid>
+                  </Grid>
 
-            {errors.members && (
-              <Typography fontSize={12} color={C.error} mt={1}>{errors.members}</Typography>
-            )}
+                  {memberError && (
+                    <Typography fontSize={12} color={C.error} mt={1}>{memberError}</Typography>
+                  )}
+                </Box>
+              )}
+
+              {errors.members && (
+                <Typography fontSize={12} color={C.error} mt={1}>{errors.members}</Typography>
+              )}
 
             
           </Section>
+          )}
+
+          {/* Individual Project Creator Section */}
+          {formData.projectMode === 'individual' && (
+            <Section
+              icon={<PersonIcon />}
+              title="Project Creator"
+              subtitle="You are the sole contributor to this project"
+            >
+              {/* Creator card for individual project */}
+              <Box
+                sx={{
+                  display:       'flex',
+                  alignItems:    'center',
+                  gap:           2,
+                  p:             2,
+                  border:        `2px solid ${C.primary}`,
+                  borderRadius:  2,
+                  bgcolor:       C.primarySoft,
+                }}
+              >
+                <Avatar sx={{ bgcolor: avatarColor(user?.email || ''), width: 40, height: 40, fontSize: 14 }}>
+                  {getInitials(`${user?.firstName || ''} ${user?.lastName || ''}`)}
+                </Avatar>
+                <Box sx={{ flex: 1 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Typography fontWeight={700} fontSize={14} color={C.text}>
+                      {user?.firstName} {user?.lastName}
+                    </Typography>
+                    <Chip label="You (Creator)" size="small" color="primary" sx={{ height: 20, fontSize: 11 }} />
+                    <Chip label="Individual Project" size="small" variant="outlined" sx={{ height: 20, fontSize: 11 }} />
+                  </Box>
+                  <Typography fontSize={12} color={C.muted}>{user?.email}</Typography>
+                </Box>
+                <TextField
+                  required
+                  size="small"
+                  label="Your Component / Role"
+                  value={creatorComponent}
+                  onChange={(e) => {
+                    setCreatorComponent(e.target.value);
+                    setErrors(prev => ({ ...prev, creatorComponent: '' }));
+                  }}
+                  error={!!errors.creatorComponent}
+                  helperText={errors.creatorComponent}
+                  placeholder="e.g. Full-stack Developer"
+                  sx={{ minWidth: 220 }}
+                />
+              </Box>
+            </Section>
+          )}
 
           {/* ── Footer actions ── */}
           <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2, mt: 1 }}>

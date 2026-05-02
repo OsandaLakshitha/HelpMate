@@ -11,6 +11,7 @@ import {
   updateProjectTime,
   getBCP,
   getWorkloadCheck,
+  updatePriority,
 } from '../../controllers/Bcontrollers/memberController.js';
 
 const router = Router();

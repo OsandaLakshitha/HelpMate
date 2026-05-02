@@ -38,7 +38,14 @@ import {
   Calendar,
   BarChart3,
   Compass,
+  Group,
+  GroupIcon,
+  Paperclip,
+  University,
+  BookUser,
+  ProjectorIcon,
 } from 'lucide-react';
+import { paperClasses } from '@mui/material';
 
 const UserNavbar = () => {
   const { user, logout } = useAuth();
@@ -127,12 +134,12 @@ const UserNavbar = () => {
     },
     {
       name: 'workspace',
-      icon: Heart,
+      icon: University,
       dropdown: [
-        { name: 'workspace', href: '/user/workspace', icon: Activity, description: 'get a quick daily summary' },
-        { name: 'projects', href: '/user/projects', icon: Smile, description: 'Track your projects' },
-        { name: 'taskboard', href: '/user/taskboard', icon: Heart, description: 'track your tasks' },
-        { name: 'insights', href: '/user/insights', icon: Calendar, description: 'see your performance' },
+        { name: 'Workspace', href: '/user/workspace', icon: GroupIcon, description: 'get a quick daily summary' },
+        { name: 'Projects', href: '/user/projects', icon: Paperclip, description: 'Track your projects' },
+        { name: 'Taskboard', href: '/user/taskboard', icon: BookMarked, description: 'track your tasks' },
+        
       ]
     },
     {

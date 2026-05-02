@@ -1,9 +1,9 @@
-import express from 'express';
-import { getUserInsights } from '../../controllers/Bcontrollers/insightController.js';
+import { Router } from "express";
+import { protect } from "../../middleware/auth.js";
+import { getUserInsights } from "../../controllers/Bcontrollers/insightController.js";
 
-const router = express.Router();
+const router = Router();
 
-// GET /api/insights/:userId
-router.get('/:userId', getUserInsights);
+router.get("/:userId", protect, getUserInsights);
 
 export default router;

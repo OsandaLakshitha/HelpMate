@@ -1,231 +1,314 @@
-import BTask           from '../../models/Bmodels/BTask.js';
-import BProject        from '../../models/Bmodels/BProject.js';
-import BStudentProfile from '../../models/Bmodels/BProfile.js';
-import BPrediction     from '../../models/Bmodels/Bprediction.js';
-import BCompletion     from '../../models/Bmodels/Bcompletion.js';
-import BProjectMember  from '../../models/Bmodels/BProjectMember.js';
+// ═══════════════════════════════════════════════════════════════════════════
+// claudeService.js — Academic Task Planner
+//
+// Prompt Engineering Standard Used:
+//   [SYSTEM ROLE] → [CONTEXT] → [INSTRUCTION] → [CONSTRAINTS] → [OUTPUT FORMAT]
+//
+// Optimised for:
+//   • University-style deliverables (reports, prototypes, experiments)
+//   • SMART task criteria
+//   • Reliable, parseable JSON output
+// ═══════════════════════════════════════════════════════════════════════════
 
-// ── Priority weights ──────────────────────────────────────────────────────────
-const PRIORITY_WEIGHTS = { high: 1.5, medium: 1.0, low: 0.6 };
+import Groq from "groq-sdk";
 
-export const recalculate = async ({
-  studentId,
-  projectId,
-  triggerType       = 'initial',
-  triggeredByTaskId = null,
-}) => {
+const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+const MODEL = "llama-3.3-70b-versatile";
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// HELPER — compute planning parameters from project + member data
+// ─────────────────────────────────────────────────────────────────────────────
+const computePlanningParams = (project, member) => {
+  const today      = new Date();
+  const due        = new Date(project.dueDate);
+  const rawDays    = Math.max(1, Math.round((due - today) / 86400000));
+
+  // Add a review buffer so the last task isn't due on submission day
+  const bufferDays  = rawDays < 7 ? 0 : rawDays < 14 ? 1 : 2;
+  const workingDays = Math.max(3, rawDays - bufferDays);
+
+  // Daily capacity
+  const weeklyHrs  = (member.availableTime.weekdays * 5) + (member.availableTime.weekends * 2);
+  const dailyAvg   = parseFloat((weeklyHrs / 7).toFixed(1));
+
+  // Complexity multiplier (affects how much can fit in one task)
+  const complexityScale = { Low: 0.5, Medium: 0.65, High: 0.8 }[project.complexity] ?? 0.65;
+  const taskHourCap     = parseFloat(Math.max(1.5, dailyAvg * complexityScale).toFixed(1));
+
+  // Task count: one meaningful task per working day, capped sensibly
+  const targetTaskCount = Math.min(12, Math.max(5, workingDays));
+
+  return {
+    today:            today.toISOString().split("T")[0],
+    deadline:         due.toISOString().split("T")[0],
+    workingDays,
+    dailyAvg,
+    taskHourCap,
+    targetTaskCount,
+    complexityScale,
+  };
+};
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PROMPT 1 — Project Description
+//
+// Standard: ROLE → CONTEXT → INSTRUCTION → CONSTRAINTS → OUTPUT FORMAT
+// ─────────────────────────────────────────────────────────────────────────────
+const buildDescriptionPrompt = ({ pdfText, approach }) => `
+ROLE
+You are an academic project coordinator who writes concise project summaries
+for university group assignments.
+
+CONTEXT
+${pdfText   ? `Assignment Brief:\n${pdfText}\n`   : "Assignment brief: not provided.\n"}
+${approach  ? `Student's Plan:\n${approach}\n`    : "Student plan: not provided.\n"}
+
+INSTRUCTION
+Write a 2–3 sentence project description that clearly states:
+1. What the group is building or researching (favour the student's plan over the brief when they differ).
+2. The primary goal or expected academic outcome.
+3. Key technologies, methods, or frameworks involved (only if explicitly mentioned).
+
+CONSTRAINTS
+- Exactly 2–3 sentences. No more, no less.
+- Plain prose only — no bullet points, headings, or labels.
+- Do not add disclaimers, meta-commentary, or filler phrases.
+- If details are absent, make a conservative inference based on standard academic conventions.
+
+OUTPUT FORMAT
+Return only the 2–3 sentence summary. No preamble. No explanation.
+`.trim();
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PROMPT 2 — Academic Task Generation
+//
+// Standard: ROLE → CONTEXT → INSTRUCTION → RULES → OUTPUT FORMAT
+// ─────────────────────────────────────────────────────────────────────────────
+const buildTasksPrompt = ({
+  project,
+  member,
+  individualPart,
+  groupApproach,
+  pdfText,
+  today,
+  deadline,
+  workingDays,
+  dailyAvg,
+  taskHourCap,
+  targetTaskCount,
+}) => `
+ROLE
+You are a university project supervisor who breaks student assignments into
+concrete, day-sized tasks. You understand academic deliverables: literature
+reviews, system designs, prototypes, test reports, reflective journals,
+presentations, and dissertations.
+
+CONTEXT
+Project title      : "${project.title}"
+Complexity level   : "${project.complexity ?? "Medium"}"
+Start date         : "${today}"
+Submission deadline: "${deadline}"
+Working days left  : ${workingDays}
+
+Assignment brief:
+${pdfText || "Not provided."}
+
+Group approach:
+${groupApproach || "Not provided."}
+
+Student name       : "${member.firstName} ${member.lastName}"
+Individual component: "${individualPart}"
+Weekday hours/day  : ${member.availableTime.weekdays}
+Weekend hours/day  : ${member.availableTime.weekends}
+Average hours/day  : ${dailyAvg}
+Max hours per task : ${taskHourCap}
+
+INSTRUCTION
+Break the student's individual component ("${individualPart}") into exactly
+${targetTaskCount} academic tasks that together cover the full scope of that
+component. The tasks should guide the student from initial research through
+to a submission-ready deliverable.
+
+TASK ORDERING RULES (follow this sequence)
+1. Background research and literature review
+2. Planning, outlining, or system/experiment design  
+3. Core implementation, writing, or data collection (one sub-topic per task)
+4. Testing, evaluation, or critical analysis
+5. Editing, formatting, and submission preparation
+6. Generate more than 8 tasks
+
+TASK SIZING RULES (non-negotiable)
+- Each task must be completable in ONE focused day (≤ ${taskHourCap} hours).
+- If a topic needs more than ${taskHourCap} hours, split it into two sequential tasks.
+  BAD : "Write the entire literature review"
+  GOOD: "Draft literature review — background theory" +
+        "Draft literature review — related work and gap analysis"
+
+STEP RULES (4–6 steps per task)
+- Every step must be a specific, executable action the student can do immediately.
+- Name exact files, sections, tools, databases, or artefacts to produce.
+  BAD : "Research the topic"
+  GOOD: "Search Google Scholar for 5 peer-reviewed papers published after 2019
+         on [exact sub-topic]; save citations in references.bib"
+- Academic deliverables: cite section headings, word counts, or diagram names.
+- Technical deliverables: cite file paths, function names, or CLI commands.
+
+YOUTUBE QUERY RULES (2 queries per task)
+- Write queries that would find a REAL tutorial or lecture on that exact skill.
+- Be specific: include the tool/concept name and a qualifier.
+  BAD : "machine learning tutorial"
+  GOOD: "how to write a literature review for computer science assignments"
+  GOOD: "Flask REST API tutorial step by step 2024"
+- Match the query to the precise skill needed in THAT task, not the project overall.
+
+OUTPUT FORMAT
+Return ONLY a valid JSON array — no markdown fences, no preamble, no explanation.
+
+[
+  {
+    "title": "Action verb + deliverable (≤ 10 words)",
+    "description": "2–3 sentences: what to do, why it matters for the assignment, and what the output looks like.",
+    "steps": [
+      "Specific executable step 1",
+      "Specific executable step 2",
+      "Specific executable step 3",
+      "Specific executable step 4"
+    ],
+    "youtubeQueries": [
+      "Precise search query 1",
+      "Precise search query 2"
+    ],
+    "order": 1
+  }
+]
+
+Generate exactly ${targetTaskCount} task objects. The "order" field must run
+from 1 to ${targetTaskCount} with no duplicates or gaps.
+`.trim();
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// generateProjectDescription
+// ─────────────────────────────────────────────────────────────────────────────
+export const generateProjectDescription = async (pdfText, approach) => {
   try {
-    const project = await BProject.findById(projectId);
-    if (!project) throw new Error('Project not found');
+    const prompt = buildDescriptionPrompt({ pdfText, approach });
 
-    const profile       = await BStudentProfile.findOne({ userId: studentId });
-    const availableTime = profile?.availableTime || { weekdays: 2, weekends: 4 };
-    const pss           = profile?.pss?.score    || 0.85;
-
-    const now      = new Date();
-    const dueDate  = new Date(project.dueDate);
-    const daysLeft = Math.max(0, (dueDate - now) / 86400000);
-
-    const allTasks     = await BTask.find({ projectId, assigneeId: studentId });
-    const pendingTasks = allTasks.filter(t => t.status !== 'Completed');
-    const doneTasks    = allTasks.filter(t => t.status === 'Completed');
-
-    // ── Hard overrides ────────────────────────────────────────────────────────
-    if (allTasks.length === 0) {
-      return await upsert(studentId, projectId, {
-        status: 'not-started', lastTriggerType: triggerType, lastTriggerDate: now,
-      });
-    }
-    if (pendingTasks.length === 0) {
-      return await upsert(studentId, projectId, {
-        status: 'complete', lastTriggerType: triggerType, lastTriggerDate: now,
-      });
-    }
-    if (daysLeft <= 0) {
-      return await upsert(studentId, projectId, {
-        status: 'in-danger', completionScore: 0,
-        lastTriggerType: triggerType, lastTriggerDate: now,
-      });
-    }
-
-    // ── Cold start — need 4 completions across ALL projects ───────────────────
-    const totalCompletions = await BCompletion.countDocuments({ studentId });
-    if (totalCompletions < 4) {
-      return await upsert(studentId, projectId, {
-        status:               'not-started',
-        completionScore:      null,
-        confidence:           0,
-        daysLeft:             Math.round(daysLeft),
-        paceDelta:            0,
-        dataPointsUsed:       totalCompletions,
-        isEstimated:          true,
-        coldStart:            true,
-        completionsNeeded:    Math.max(0, 4 - totalCompletions),
-        completedThisProject: doneTasks.length,
-        lastTriggerType:      triggerType,
-        lastTriggerDate:      now,
-        triggeredByTaskId:    triggeredByTaskId || null,
-      });
-    }
-
-    // ── HYBRID: Priority × Deadline Pressure ─────────────────────────────────
-    // Get all active projects this student is part of
-    const allMembers = await BProjectMember.find({ userId: studentId })
-      .populate('projectId').lean();
-
-    const activeMembers = allMembers.filter(m =>
-      m.projectId &&
-      m.projectId.status !== 'Closed' &&
-      new Date(m.projectId.dueDate) > now
-    );
-
-    // Calculate effective weight per project
-    // effectiveWeight = priorityWeight × (1 / daysLeft)
-    // closer deadline = higher pressure = more time share
-    const weightedProjects = activeMembers.map(m => {
-      const proj             = m.projectId;
-      const dl               = Math.max(1, (new Date(proj.dueDate) - now) / 86400000);
-      const deadlinePressure = 1 / dl;
-      const priorityWeight   = PRIORITY_WEIGHTS[m.priority || 'medium'];
-      const effectiveWeight  = priorityWeight * deadlinePressure;
-      return {
-        projectId:      String(proj._id),
-        effectiveWeight,
-        schedulingMode: m.schedulingMode || 'parallel',
-        daysLeft:       dl,
-        priority:       m.priority || 'medium',
-      };
+    const completion = await groq.chat.completions.create({
+      model:       MODEL,
+      messages:    [{ role: "user", content: prompt }],
+      temperature: 0.2,   // Near-deterministic: summarisation task
+      max_tokens:  220,
     });
 
-    const totalEffectiveWeight = weightedProjects.reduce((s, p) => s + p.effectiveWeight, 0) || 1;
-
-    // This project's record
-    const thisRecord          = weightedProjects.find(p => p.projectId === String(projectId));
-    const thisEffectiveWeight = thisRecord?.effectiveWeight || 1;
-    const schedulingMode      = thisRecord?.schedulingMode  || 'parallel';
-
-    // Daily total hours (weighted average across the week)
-    const dailyTotal = ((availableTime.weekdays * 5) + (availableTime.weekends * 2)) / 7;
-
-    // Calculate daily hours allocated to THIS project
-    let dailyForThis;
-    let linearConflictWarning = null;
-
-    if (schedulingMode === 'linear') {
-      // Linear — check if any other project has EARLIER deadline
-      const earlierProjects = weightedProjects.filter(p =>
-        p.projectId !== String(projectId) && p.daysLeft < daysLeft
-      );
-
-      if (earlierProjects.length === 0) {
-        // No earlier deadlines — safe to go fully linear
-        dailyForThis = dailyTotal;
-      } else {
-        // Earlier deadlines exist — protect those first
-        // Give earlier projects their proportional share
-        // Give this linear project the remaining hours
-        const earlierWeight   = earlierProjects.reduce((s, p) => s + p.effectiveWeight, 0);
-        const remainingShare  = 1 - (earlierWeight / totalEffectiveWeight);
-        dailyForThis          = dailyTotal * Math.max(0.1, remainingShare);
-        linearConflictWarning = `${earlierProjects.length} project(s) with earlier deadlines are being protected first. Full linear focus starts after those deadlines pass.`;
-      }
-    } else {
-      // Parallel — hybrid formula share
-      dailyForThis = dailyTotal * (thisEffectiveWeight / totalEffectiveWeight);
-    }
-
-    // Minimum 0.25 hrs/day to avoid division by zero
-    dailyForThis = Math.max(0.25, dailyForThis);
-    const timeSharePct = (dailyForThis / dailyTotal) * 100;
-
-    // ── Days needed ───────────────────────────────────────────────────────────
-    const graceMs  = 12 * 60 * 60 * 1000;
-    const overdue  = pendingTasks.filter(t => t.dueDate && (now - new Date(t.dueDate)) > graceMs);
-    const upcoming = pendingTasks.filter(t => !t.dueDate || (now - new Date(t.dueDate)) <= graceMs);
-
-    const overdueDays  = overdue.reduce((s, t) => {
-      const daysSince = (now - new Date(t.dueDate)) / 86400000;
-      return s + (t.estimatedDays || 1) + daysSince;
-    }, 0);
-    const upcomingDays = upcoming.reduce((s, t) => s + ((t.estimatedDays || 1) / pss), 0);
-    const totalProjectedDays = overdueDays + upcomingDays;
-
-    const effectiveDays = totalProjectedDays * (8 / dailyForThis);
-
-    // ── Completion score + status ─────────────────────────────────────────────
-    const CS = (daysLeft / effectiveDays) * 100;
-    let status = CS >= 100 ? 'on-track' : CS >= 80 ? 'at-risk' : 'in-danger';
-
-    const concurrentProjects = weightedProjects.length;
-    let multiProjectDowngraded = false;
-    if (concurrentProjects >= 3 && status === 'on-track' && CS < 115) {
-      status = 'at-risk'; multiProjectDowngraded = true;
-    }
-    if (concurrentProjects >= 2 && status === 'at-risk' && CS < 85) {
-      status = 'in-danger'; multiProjectDowngraded = true;
-    }
-
-    // ── Pace ──────────────────────────────────────────────────────────────────
-    const startDate      = new Date(project.startDate || project.createdAt);
-    const totalDuration  = Math.max(1, (dueDate - startDate) / 86400000);
-    const elapsed        = Math.max(0, (now - startDate) / 86400000);
-    const timeElapsedPct = Math.min(100, (elapsed / totalDuration) * 100);
-
-    const totalWeight       = allTasks.reduce((s, t) => s + (t.complexity || 3), 0);
-    const completedWeight   = doneTasks.reduce((s, t) => s + (t.complexity || 3), 0);
-    const workCompletionPct = totalWeight > 0 ? (completedWeight / totalWeight) * 100 : 0;
-    const paceDelta         = workCompletionPct - timeElapsedPct;
-
-    const bufferDays      = daysLeft - effectiveDays;
-    const projectedFinish = new Date(now.getTime() + effectiveDays * 86400000);
-
-    const overdueTaskCount = overdue.length;
-    const totalOverdueDays = overdue.reduce((s, t) =>
-      s + Math.max(0, (now - new Date(t.dueDate)) / 86400000), 0
-    );
-
-    const confidence  = Math.min(0.95, 0.30 + totalCompletions * 0.05);
-    const isEstimated = totalCompletions < 6;
-
-    return await upsert(studentId, projectId, {
-      status,
-      completionScore:        Math.round(CS),
-      pssAtCalculation:       pss,
-      projectedFinishDate:    projectedFinish,
-      daysLeft:               Math.round(daysLeft),
-      projectedDaysNeeded:    Math.round(effectiveDays),
-      bufferDays:             Math.round(bufferDays),
-      workCompletionPct:      Math.round(workCompletionPct),
-      timeElapsedPct:         Math.round(timeElapsedPct),
-      paceDelta:              Math.round(paceDelta),
-      concurrentProjects,
-      timeSharePct:           Math.round(timeSharePct),
-      dailyHoursAllocated:    Math.round(dailyForThis * 100) / 100,
-      schedulingMode,
-      priority:               thisRecord?.priority || 'medium',
-      multiProjectDowngraded,
-      overdueTaskCount,
-      totalOverdueDays:       Math.round(totalOverdueDays),
-      confidence:             Math.round(confidence * 100) / 100,
-      dataPointsUsed:         totalCompletions,
-      coldStart:              false,
-      completionsNeeded:      0,
-      isEstimated,
-      linearConflictWarning,
-      lastTriggerType:        triggerType,
-      lastTriggerDate:        now,
-      triggeredByTaskId:      triggeredByTaskId || null,
-    });
+    return completion.choices[0].message.content?.trim() ?? null;
 
   } catch (err) {
-    console.error('predictionEngine error:', err.message);
+    console.error("[generateProjectDescription] Groq error:", err.message);
     return null;
   }
 };
 
-const upsert = (studentId, projectId, data) =>
-  BPrediction.findOneAndUpdate(
-    { studentId, projectId },
-    { $set: data },
-    { upsert: true, new: true }
-  );
+
+// ─────────────────────────────────────────────────────────────────────────────
+// generateTasks
+// ─────────────────────────────────────────────────────────────────────────────
+export const generateTasks = async ({
+  pdfText,
+  individualPart,
+  groupApproach,
+  member,
+  project,
+}) => {
+  const params = computePlanningParams(project, member);
+
+  const prompt = buildTasksPrompt({
+    project,
+    member,
+    individualPart,
+    groupApproach,
+    pdfText,
+    ...params,
+  });
+
+  try {
+    const completion = await groq.chat.completions.create({
+      model:       MODEL,
+      messages:    [{ role: "user", content: prompt }],
+      temperature: 0.4,   // Slightly creative but stays grounded in the brief
+      max_tokens:  3000,  // Enough room for up to 12 detailed tasks
+    });
+
+    const raw = completion.choices[0].message.content ?? "";
+    return parseTasksJSON(raw, params.targetTaskCount);
+
+  } catch (err) {
+    console.error("[generateTasks] Groq error:", err.message);
+    throw new Error(`Task generation failed: ${err.message}`);
+  }
+};
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// parseTasksJSON — strict validation + normalisation
+// ─────────────────────────────────────────────────────────────────────────────
+const parseTasksJSON = (raw, expectedCount) => {
+  // 1. Strip any accidental markdown code fences
+  const cleaned = raw
+    .replace(/^```(?:json)?\s*/im, "")
+    .replace(/```\s*$/m, "")
+    .trim();
+
+  // 2. Parse
+  let tasks;
+  try {
+    tasks = JSON.parse(cleaned);
+  } catch (parseErr) {
+    console.error("[parseTasksJSON] JSON.parse failed:", parseErr.message);
+    console.error("[parseTasksJSON] Raw preview:", raw.slice(0, 600));
+    throw new Error(`AI returned invalid JSON: ${parseErr.message}`);
+  }
+
+  // 3. Structural guard
+  if (!Array.isArray(tasks)) {
+    throw new Error("AI response is not a JSON array.");
+  }
+
+  // 4. Normalise each task
+  const normalised = tasks
+    .filter((t) => t?.title)                     // must have a title
+    .map((t, i) => ({
+      title: String(t.title).trim().slice(0, 100),
+
+      description: t.description
+        ? String(t.description).trim().slice(0, 400)
+        : "",
+
+      steps: Array.isArray(t.steps)
+        ? t.steps
+            .map((s) => String(s).trim())
+            .filter(Boolean)
+            .slice(0, 6)
+        : [],
+
+      youtubeQueries: Array.isArray(t.youtubeQueries)
+        ? t.youtubeQueries
+            .map((q) => String(q).trim())
+            .filter(Boolean)
+            .slice(0, 2)
+        : [],
+
+      // Enforce order falls within expected range
+      order: Math.max(1, Math.min(expectedCount, Number(t.order) || i + 1)),
+    }))
+    .slice(0, 12);  // hard cap
+
+  if (normalised.length === 0) {
+    throw new Error("AI returned no valid tasks after normalisation.");
+  }
+
+  return normalised;
+};

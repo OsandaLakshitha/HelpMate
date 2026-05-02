@@ -1,18 +1,16 @@
+// dashboardRoutes.js
 import { Router } from 'express';
 import { protect } from '../../middleware/auth.js';
 import {
-  
-  getDashboardSummary   // ✅ make sure this is exported in your controller
+  getStudentDashboard,
 } from '../../controllers/Bcontrollers/dashboardController.js';
 
 const router = Router();
 
-// Dashboard summary route
-router.get('/dashboard-summary', protect, getDashboardSummary);
+// Keep old route name for frontend compatibility
+router.get('/dashboard-summary', protect, getStudentDashboard);
 
-// Other dashboard routes
-//router.get('/summary', protect, summary);
-//router.get('/trend', protect, tasksTrend); // ?period=daily|weekly|monthly
-//router.get('/ongoing', protect, ongoingTasks);
+// Daily targets route
+//router.get('/daily-targets', protect, getDailyTargets);
 
 export default router;

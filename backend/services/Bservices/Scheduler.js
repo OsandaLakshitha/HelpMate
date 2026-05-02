@@ -1,45 +1,52 @@
+// services/Bservices/scheduler.js
 import cron from 'node-cron';
-import BTask from '../../models/Bmodels/BTask.js';
-//import { recalculate } from './backend/services/Bservices/Predictionengine.js';
-import { recalculate } from './Predictionengine.js';
+import BProject from '../../models/Bmodels/BProject.js';
+import { recalculateAllForStudent } from './Predictionengine.js';
 
-// Runs every night at midnight.
-// Finds tasks past dueDate + 12hrs that are still New.
-// Marks them overdue and recalculates predictions.
-export const startScheduler = () => {
-  cron.schedule('0 0 * * *', async () => {
-    console.log('⏰ Running nightly overdue task check...');
+export function startScheduler() {
+  // Run at 00:01 every day
+  cron.schedule('1 0 * * *', async () => {
+    console.log('⏰ Daily prediction refresh starting...');
+    const startTime = Date.now();
+
     try {
-      const now     = new Date();
-      const cutoff  = new Date(now.getTime() - 12 * 60 * 60 * 1000);
+      const now = new Date();
 
-      const overdueTasks = await BTask.find({ status: 'New', dueDate: { $lt: cutoff } });
+      // Find all open projects with future deadlines
+      const activeProjects = await BProject.find({
+        status: 'Open',
+        dueDate: { $gt: now },
+      }).lean();
 
-      for (const task of overdueTasks) {
-        if (task.completionState !== 'overdue') {
-          task.completionState = 'overdue';
-          await task.save();
+      // Collect unique student IDs from all projects
+      const studentSet = new Set();
+      for (const project of activeProjects) {
+        for (const memberId of project.memberIds || []) {
+          studentSet.add(String(memberId));
         }
       }
 
-      // One recalculate per student per project
-      const pairs = new Map();
-      for (const task of overdueTasks) {
-        const key = `${task.projectId}_${task.assigneeId}`;
-        if (!pairs.has(key)) pairs.set(key, { projectId: task.projectId, studentId: task.assigneeId });
+      // Recalculate all projects for each student
+      let refreshed = 0;
+      let failed = 0;
+
+      for (const studentId of studentSet) {
+        try {
+          await recalculateAllForStudent(studentId, 'daily-refresh');
+          refreshed++;
+        } catch (err) {
+          console.error(`Refresh failed: student=${studentId}`, err.message);
+          failed++;
+        }
       }
 
-      let updated = 0;
-      for (const { projectId, studentId } of pairs.values()) {
-        await recalculate({ studentId, projectId, triggerType: 'task-overdue' });
-        updated++;
-      }
+      const duration = ((Date.now() - startTime) / 1000).toFixed(2);
+      console.log(`✅ Daily refresh done in ${duration}s. Refreshed: ${refreshed}, Failed: ${failed}`);
 
-      console.log(`✅ Overdue check done — ${overdueTasks.length} tasks, ${updated} predictions updated`);
     } catch (err) {
-      console.error('Scheduler error:', err.message);
+      console.error('❌ Scheduler error:', err.message);
     }
   });
 
-  console.log('📅 Scheduler started — runs daily at midnight');
-};
+  console.log('⏰ Prediction scheduler running — refreshes daily at 00:01');
+}

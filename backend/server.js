@@ -14,7 +14,6 @@ const githubRoutes      = require("./routes/Broutes/githubRoutes").default;
 const dashboardRoutes   = require("./routes/Broutes/dashboardRoutes").default;
 const insightRoutes     = require("./routes/Broutes/insightRoutes").default;
 const interactionRoutes = require("./routes/Broutes/interactionRoutes").default;
-// ── NEW ───────────────────────────────────────────────────────────────────────
 const profileRoutes     = require("./routes/Broutes/Profileroutes").default;
 const predictionRoutes  = require("./routes/Broutes/Predictionroutes").default;
 
@@ -38,11 +37,17 @@ mongoose
   })
   .then(() => {
     console.log("✅ MongoDB connected");
-    // ── NEW: start nightly overdue task checker ───────────────────────────
+
+    // ── Existing scheduler ────────────────────────────────────────────────
     const { startScheduler } = require("./services/Bservices/Scheduler.js");
     startScheduler();
-    //console.log(process.env.CLAUDE_API_KEY);
-    //console.log("Claude Key:", process.env.CLAUDE_API_KEY);
+
+    // ── NEW: RAP daily prediction refresh (midnight cron) ─────────────────
+    // Runs recalculate() for every student in every open project at 00:00
+    // This keeps BDailyLog filled even on days students don't complete tasks
+    // Required for resilienceScore and studentRatio to work correctly
+    require("./services/Bservices/dailyRefresh.js");
+    console.log("✅ Daily prediction refresh scheduler started");
   })
   .catch((err) => console.error("❌ MongoDB connection error:", err));
 
@@ -54,7 +59,6 @@ app.use("/api",               require("./routes/recommendations"));
 app.use("/api/notes",         notesRouter);
 app.use("/api/peer-matching", require("./routes/peerMatching"));
 app.use("/uploads",           express.static(path.join(__dirname, "../uploads")));
-// ── NEW: serve PDF uploads ────────────────────────────────────────────────────
 app.use("/uploads/pdfs",      express.static(path.join(__dirname, "../uploads/pdfs")));
 
 app.use('/api/projects',      githubRoutes);
@@ -64,7 +68,6 @@ app.use("/api/tasks",         taskRoutes);
 app.use("/api/user",          dashboardRoutes);
 app.use('/api/insights',      insightRoutes);
 app.use('/api/interactions',  interactionRoutes);
-// ── NEW ───────────────────────────────────────────────────────────────────────
 app.use('/api/profile',       profileRoutes);
 app.use('/api/prediction',    predictionRoutes);
 

@@ -1,779 +1,693 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Container,
-  Typography,
   Box,
+  Typography,
   TextField,
   InputAdornment,
   ToggleButtonGroup,
   ToggleButton,
-  Card,
-  CardContent,
-  Grid,
-  Chip,
   IconButton,
-  CircularProgress,
   Alert,
-  Avatar,
-  Tooltip,
-  Paper,
+  Chip,
   Skeleton,
-  Stack,
-  Divider,
+  Tooltip,
+  Avatar,
+  AvatarGroup,
   alpha,
   useTheme,
-  AvatarGroup,
 } from '@mui/material';
-import SearchIcon from '@mui/icons-material/Search';
-import AddIcon from '@mui/icons-material/Add';
-import CodeIcon from '@mui/icons-material/Code';
-import DescriptionIcon from '@mui/icons-material/Description';
-import GroupIcon from '@mui/icons-material/Group';
-import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
-import PersonIcon from '@mui/icons-material/Person';
-import FilterListIcon from '@mui/icons-material/FilterList';
-import SortIcon from '@mui/icons-material/Sort';
-import ViewModuleIcon from '@mui/icons-material/ViewModule';
-import ViewListIcon from '@mui/icons-material/ViewList';
+import SearchIcon       from '@mui/icons-material/Search';
+import AddIcon          from '@mui/icons-material/Add';
+import CodeIcon         from '@mui/icons-material/Code';
+import DescriptionIcon  from '@mui/icons-material/Description';
+import FolderIcon       from '@mui/icons-material/Folder';
+import UnfoldMoreIcon   from '@mui/icons-material/UnfoldMore';
+import KeyboardArrowUpIcon   from '@mui/icons-material/KeyboardArrowUp';
+import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
+import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import axios from 'axios';
-import { API_URL } from '../../../config/api';
-import { useAuth } from '../../../context/AuthContext';
+import { API_URL }  from '../../../config/api';
+import { useAuth }  from '../../../context/AuthContext';
 
-const Bprojectlist = () => {
+// ─── STATUS CONFIG — driven by BProject enum: 'Open' | 'Closed' ──────────────
+// "Overdue" is a derived UI state (Open + past dueDate), not a DB value.
+const STATUS_CFG = {
+  Open:    { label: 'Open',    color: '#2a6ef5', bg: '#eef3ff', border: '#2a6ef540' },
+  Closed:  { label: 'Closed',  color: '#64748b', bg: '#f1f5f9', border: '#64748b40' },
+  Overdue: { label: 'Overdue', color: '#dc2626', bg: '#fef2f2', border: '#dc262640' },
+};
+
+// ─── COMPLEXITY CONFIG — driven by BProject enum: 'Low' | 'Medium' | 'High' ──
+const COMPLEXITY_CFG = {
+  Low:    { color: '#16a34a', bg: '#f0fdf4', border: '#16a34a40' },
+  Medium: { color: '#d97706', bg: '#fffbeb', border: '#d9770640' },
+  High:   { color: '#dc2626', bg: '#fef2f2', border: '#dc262640' },
+};
+
+// ─── PROJECT TYPE ICON — driven by BProject enum: 'Coding' | 'Documentation' | 'Both' | 'Other' ──
+const getTypeIcon = (type) => {
+  switch (type) {
+    case 'Coding':        return <CodeIcon sx={{ fontSize: 16 }} />;
+    case 'Documentation': return <DescriptionIcon sx={{ fontSize: 16 }} />;
+    default:              return <FolderIcon sx={{ fontSize: 16 }} />;
+  }
+};
+
+// ─── HELPERS ──────────────────────────────────────────────────────────────────
+const formatDate = (date) => {
+  if (!date) return '—';
+  return new Date(date).toLocaleDateString('en-US', {
+    month: 'short', day: 'numeric', year: 'numeric',
+  });
+};
+
+const isOverdue = (project) =>
+  project.status !== 'Closed' &&
+  project.dueDate &&
+  new Date(project.dueDate) < new Date();
+
+const resolveStatus = (project) =>
+  isOverdue(project) ? 'Overdue' : (project.status || 'Open');
+
+// ─── SORT ICON ────────────────────────────────────────────────────────────────
+const SortIcon = ({ active, dir }) => {
+  if (!active) return <UnfoldMoreIcon sx={{ fontSize: 14, opacity: 0.35 }} />;
+  return dir === 1
+    ? <KeyboardArrowUpIcon   sx={{ fontSize: 14, color: '#13a2a2' }} />
+    : <KeyboardArrowDownIcon sx={{ fontSize: 14, color: '#13a2a2' }} />;
+};
+
+// ─── COLUMN HEADER BUTTON ─────────────────────────────────────────────────────
+const ColHeader = ({ label, sortKey: key, currentSort, currentDir, onSort, align = 'left' }) => (
+  <Box
+    component="button"
+    onClick={() => key && onSort(key)}
+    sx={{
+      all: 'unset',
+      display: 'flex',
+      alignItems: 'center',
+      gap: 0.4,
+      justifyContent: align === 'center' ? 'center' : 'flex-start',
+      cursor: key ? 'pointer' : 'default',
+      fontSize: '0.68rem',
+      fontWeight: 700,
+      letterSpacing: '0.08em',
+      textTransform: 'uppercase',
+      color: currentSort === key ? '#13a2a2' : 'text.secondary',
+      userSelect: 'none',
+      transition: 'color 0.15s',
+      '&:hover': key ? { color: '#13a2a2' } : {},
+    }}
+  >
+    {label}
+    {key && <SortIcon active={currentSort === key} dir={currentDir} />}
+  </Box>
+);
+
+// ─── SKELETON ROW ─────────────────────────────────────────────────────────────
+const SkeletonRow = () => (
+  <Box sx={{
+    display: 'grid',
+    gridTemplateColumns: '1fr 110px 100px 110px 110px 130px 36px',
+    alignItems: 'center',
+    gap: 2,
+    px: 2.5,
+    py: 1.5,
+    borderBottom: '1px solid',
+    borderColor: 'divider',
+  }}>
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+      <Skeleton variant="circular" width={30} height={30} />
+      <Skeleton width="55%" height={14} />
+    </Box>
+    <Skeleton width={64}  height={22} sx={{ borderRadius: 99 }} />
+    <Skeleton width={72}  height={22} sx={{ borderRadius: 99 }} />
+    <Skeleton width={80}  height={14} />
+    <Skeleton width={80}  height={14} />
+    <Skeleton width={90}  height={14} />
+    <Skeleton width={20}  height={20} sx={{ borderRadius: 1 }} />
+  </Box>
+);
+
+// ─── PROJECT ROW — all data from project object (DB) ─────────────────────────
+const ProjectRow = ({ project, userId, onClick, index }) => {
+  const [hovered, setHovered] = useState(false);
   const theme = useTheme();
+
+  const statusKey  = resolveStatus(project);
+  const stCfg      = STATUS_CFG[statusKey] || STATUS_CFG.Open;
+  const cxKey      = project.complexity || 'Low';
+  const cxCfg      = COMPLEXITY_CFG[cxKey] || COMPLEXITY_CFG.Low;
+  const memberCount = project.memberIds?.length ?? 0;
+  const myId       = String(userId);
+
+  return (
+    <Box
+      onClick={() => onClick(project._id)}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      sx={{
+        display: 'grid',
+        gridTemplateColumns: '1fr 110px 100px 110px 110px 130px 36px',
+        alignItems: 'center',
+        gap: 2,
+        px: 2.5,
+        py: 0,
+        height: 56,
+        borderBottom: '1px solid',
+        borderColor: 'divider',
+        borderLeft: '3px solid',
+        borderLeftColor: hovered ? stCfg.color : 'transparent',
+        bgcolor: hovered ? alpha(theme.palette.background.paper, 1) : 'transparent',
+        boxShadow: hovered ? '0 1px 8px rgba(0,0,0,0.06)' : 'none',
+        cursor: 'pointer',
+        transition: 'all 0.15s ease',
+        opacity: 0,
+        animation: `rowFadeIn 0.3s ease ${index * 35}ms forwards`,
+        '@keyframes rowFadeIn': {
+          from: { opacity: 0, transform: 'translateY(4px)' },
+          to:   { opacity: 1, transform: 'translateY(0)'   },
+        },
+        '&:last-child': { borderBottom: 'none' },
+      }}
+    >
+      {/* ── Col 1: Type icon + Title ───────────────────────────────────────── */}
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, minWidth: 0 }}>
+        <Avatar
+          sx={{
+            width: 30, height: 30, flexShrink: 0,
+            bgcolor: hovered ? '#13a2a210' : alpha(theme.palette.action.hover, 0.5),
+            color: hovered ? '#13a2a2' : 'text.secondary',
+            transition: 'all 0.15s',
+          }}
+        >
+          {getTypeIcon(project.projectType)}
+        </Avatar>
+        <Typography
+          noWrap
+          sx={{
+            fontSize: '0.875rem',
+            fontWeight: hovered ? 600 : 500,
+            color: hovered ? '#13a2a2' : 'text.primary',
+            transition: 'color 0.15s, font-weight 0.15s',
+            letterSpacing: '-0.01em',
+          }}
+        >
+          {project.title}
+        </Typography>
+      </Box>
+
+      {/* ── Col 2: Status chip ────────────────────────────────────────────── */}
+      <Box>
+        <Chip
+          label={stCfg.label}
+          size="small"
+          sx={{
+            fontSize: '0.7rem',
+            fontWeight: 600,
+            height: 22,
+            px: 0.5,
+            bgcolor: stCfg.bg,
+            color:   stCfg.color,
+            border:  `1px solid ${stCfg.border}`,
+            borderRadius: '99px',
+            '& .MuiChip-label': { px: 1 },
+          }}
+        />
+      </Box>
+
+      {/* ── Col 3: Complexity chip ────────────────────────────────────────── */}
+      <Box>
+        <Chip
+          label={cxKey}
+          size="small"
+          sx={{
+            fontSize: '0.7rem',
+            fontWeight: 600,
+            height: 22,
+            px: 0.5,
+            bgcolor: cxCfg.bg,
+            color:   cxCfg.color,
+            border:  `1px solid ${cxCfg.border}`,
+            borderRadius: '99px',
+            '& .MuiChip-label': { px: 1 },
+          }}
+        />
+      </Box>
+
+      {/* ── Col 4: Start date (from startDate or createdAt) ───────────────── */}
+      <Typography
+        noWrap
+        sx={{ fontSize: '0.78rem', color: 'text.secondary', fontFamily: 'monospace' }}
+      >
+        {formatDate(project.startDate || project.createdAt)}
+      </Typography>
+
+      {/* ── Col 5: Due date ───────────────────────────────────────────────── */}
+      <Typography
+        noWrap
+        sx={{
+          fontSize: '0.78rem',
+          fontFamily: 'monospace',
+          color: isOverdue(project) ? '#dc2626' : 'text.secondary',
+          fontWeight: isOverdue(project) ? 600 : 400,
+        }}
+      >
+        {formatDate(project.dueDate)}
+      </Typography>
+
+      {/* ── Col 6: Member avatar stack ────────────────────────────────────── */}
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+        <AvatarGroup
+          max={4}
+          sx={{
+            '& .MuiAvatar-root': {
+              width: 22, height: 22,
+              fontSize: '0.65rem',
+              fontWeight: 700,
+              border: '2px solid white',
+            },
+          }}
+        >
+          {project.memberIds?.map((mId, idx) => {
+            const isMe = String(mId) === myId;
+            return (
+              <Tooltip key={String(mId) || idx} title={isMe ? 'You' : 'Member'} placement="top">
+                <Avatar
+                  sx={{
+                    bgcolor: isMe ? '#13a2a2' : `hsl(${(idx * 53) % 360}, 55%, 65%)`,
+                    color: '#ffffff',
+                    fontSize: '0.6rem',
+                  }}
+                >
+                  {isMe ? 'Y' : String.fromCharCode(65 + (idx % 26))}
+                </Avatar>
+              </Tooltip>
+            );
+          })}
+        </AvatarGroup>
+        {memberCount > 0 && (
+          <Typography sx={{ fontSize: '0.72rem', color: 'text.disabled', fontFamily: 'monospace' }}>
+            {memberCount}
+          </Typography>
+        )}
+      </Box>
+
+      {/* ── Col 7: Chevron ───────────────────────────────────────────────── */}
+      <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+        <ChevronRightIcon
+          sx={{
+            fontSize: 18,
+            color: hovered ? '#13a2a2' : 'transparent',
+            transition: 'color 0.15s',
+          }}
+        />
+      </Box>
+    </Box>
+  );
+};
+
+// ─── MAIN COMPONENT ───────────────────────────────────────────────────────────
+const Bprojectlist = () => {
+  const theme    = useTheme();
   const navigate = useNavigate();
   const { user, token } = useAuth();
-  const [projects, setProjects] = useState([]);
+
+  // ── State ─────────────────────────────────────────────────────────────────
+  const [projects,         setProjects]         = useState([]);
   const [filteredProjects, setFilteredProjects] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filter, setFilter] = useState('all'); // 'all', 'mine', 'assigned'
-  const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'list'
-  const [sortBy, setSortBy] = useState('recent'); // 'recent', 'name', 'dueDate'
+  const [loading,          setLoading]          = useState(true);
+  const [error,            setError]            = useState('');
+  const [searchQuery,      setSearchQuery]      = useState('');
+  const [filter,           setFilter]           = useState('all');    // 'all' | 'mine' | 'assigned'
+  const [sortBy,           setSortBy]           = useState('recent'); // 'recent' | 'name' | 'dueDate' | 'status' | 'complexity' | 'members'
+  const [sortDir,          setSortDir]          = useState(1);        // 1 = asc, -1 = desc
 
-  // Fetch projects on component mount
-  useEffect(() => {
-    fetchProjects();
-  }, [filter]);
+  const userId = user?._id || user?.id;
 
-  // Filter and sort projects when dependencies change
-  useEffect(() => {
-    filterAndSortProjects();
-  }, [searchQuery, projects, sortBy]);
-
-  const sortProjects = (projectsToSort) => {
-    const sorted = [...projectsToSort];
+  // ── Sort ──────────────────────────────────────────────────────────────────
+  const sortProjects = useCallback((list) => {
+    const copy = [...list];
+    const cxOrder = { Low: 1, Medium: 2, High: 3 };
     switch (sortBy) {
       case 'name':
-        return sorted.sort((a, b) => a.title.localeCompare(b.title));
+        return copy.sort((a, b) => sortDir * a.title.localeCompare(b.title));
       case 'dueDate':
-        return sorted.sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
+        return copy.sort((a, b) => sortDir * (new Date(a.dueDate || 0) - new Date(b.dueDate || 0)));
+      case 'status':
+        return copy.sort((a, b) => sortDir * resolveStatus(a).localeCompare(resolveStatus(b)));
+      case 'complexity':
+        return copy.sort((a, b) => sortDir * ((cxOrder[a.complexity] || 0) - (cxOrder[b.complexity] || 0)));
+      case 'members':
+        return copy.sort((a, b) => sortDir * ((a.memberIds?.length ?? 0) - (b.memberIds?.length ?? 0)));
       case 'recent':
       default:
-        return sorted.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+        return copy.sort((a, b) => sortDir * (new Date(b.createdAt) - new Date(a.createdAt)));
     }
-  };
+  }, [sortBy, sortDir]);
 
-  const filterAndSortProjects = () => {
-    let filtered = [...projects];
-    
-    // Apply search filter
+  // ── Filter + sort ─────────────────────────────────────────────────────────
+  useEffect(() => {
+    let list = [...projects];
     if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(project => 
-        project.title?.toLowerCase().includes(query) ||
-        project.description?.toLowerCase().includes(query)
+      const q = searchQuery.toLowerCase();
+      list = list.filter((p) =>
+        p.title?.toLowerCase().includes(q) ||
+        p.description?.toLowerCase().includes(q) ||
+        p.projectType?.toLowerCase().includes(q) ||
+        p.complexity?.toLowerCase().includes(q) ||
+        p.status?.toLowerCase().includes(q)
       );
     }
-    
-    // Apply sorting
-    const sorted = sortProjects(filtered);
-    setFilteredProjects(sorted);
-  };
+    setFilteredProjects(sortProjects(list));
+  }, [searchQuery, projects, sortProjects]);
 
-  const fetchProjects = async () => {
+  // ── Fetch from DB — mirrors original fetchProjects exactly ────────────────
+  const fetchProjects = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
       const params = {};
-      if (filter === 'mine') {
-        params.mine = 'true';
-      }
-      // For 'assigned', we'll filter on the frontend based on memberIds
+      if (filter === 'mine') params.mine = 'true';
 
       const response = await axios.get(`${API_URL}/api/projects`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
         params,
       });
 
-      let fetchedProjects = response.data.projects || [];
-      
-      // Log the first project to inspect its structure
-      if (fetchedProjects.length > 0) {
-        console.log('=== PROJECT DATA STRUCTURE ===');
-        console.log('First project full data:', JSON.parse(JSON.stringify(fetchedProjects[0])));
-        console.log('Creator object:', fetchedProjects[0].creator);
-        console.log('Creator ID:', fetchedProjects[0].creatorId);
-        console.log('Creator name fields:', {
-          creatorName: fetchedProjects[0].creatorName,
-          creatorName2: fetchedProjects[0]?.creator?.name,
-          creatorFirstName: fetchedProjects[0]?.creator?.firstName,
-          creatorLastName: fetchedProjects[0]?.creator?.lastName,
-          creatorEmail: fetchedProjects[0]?.creator?.email,
-          creatorUsername: fetchedProjects[0]?.creator?.username
-        });
-        
-        // Log all projects with creator info
-        console.log('All projects creator info:', fetchedProjects.map(p => ({
-          id: p._id,
-          title: p.title,
-          creatorId: p.creatorId,
-          creator: p.creator,
-          creatorName: p.creatorName,
-          hasCreatorObject: !!p.creator,
-          creatorKeys: p.creator ? Object.keys(p.creator) : []
-        })));
-      }
+      let fetched = response.data.projects || [];
 
-      // If filter is 'assigned', show only projects where user is a member but not creator
+      // 'assigned' — client-side filter: member but NOT creator
       if (filter === 'assigned') {
-        fetchedProjects = fetchedProjects.filter(
-          (project) =>
-            project.memberIds?.includes(user._id || user.id) &&
-            project.creatorId !== (user._id || user.id)
+        fetched = fetched.filter((p) =>
+          p.memberIds?.map(String).includes(String(userId)) &&
+          String(p.creatorId) !== String(userId)
         );
       }
 
-      setProjects(fetchedProjects);
-      setFilteredProjects(fetchedProjects);
+      setProjects(fetched);
+      setFilteredProjects(fetched);
     } catch (err) {
       console.error('Error fetching projects:', err);
       setError(err.response?.data?.message || 'Failed to fetch projects');
     } finally {
       setLoading(false);
     }
+  }, [filter, token, userId]);
+
+  useEffect(() => { fetchProjects(); }, [fetchProjects]);
+
+  // ── Handlers ──────────────────────────────────────────────────────────────
+  const handleFilterChange = (_, newFilter) => { if (newFilter !== null) setFilter(newFilter); };
+  const handleProjectClick = (id)            => navigate(`/user/projects/${id}`);
+  const handleCreateProject = ()             => navigate('/user/createproject');
+
+  const handleSort = (key) => {
+    if (sortBy === key) setSortDir((d) => d * -1);
+    else { setSortBy(key); setSortDir(1); }
   };
 
-  const handleFilterChange = (event, newFilter) => {
-    if (newFilter !== null) {
-      setFilter(newFilter);
-    }
+  // ── Counts from live DB data ───────────────────────────────────────────────
+  const counts = {
+    all:      projects.length,
+    open:     projects.filter((p) => p.status === 'Open' && !isOverdue(p)).length,
+    overdue:  projects.filter((p) => isOverdue(p)).length,
+    closed:   projects.filter((p) => p.status === 'Closed').length,
   };
 
-  const handleSearchChange = (event) => {
-    setSearchQuery(event.target.value);
-  };
-
-  const handleCreateProject = () => {
-    navigate('/user/createproject');
-  };
-
-  const handleProjectClick = (projectId) => {
-    navigate(`/user/projects/${projectId}`);
-  };
-
-  const getComplexityColor = (complexity) => {
-    switch (complexity?.toLowerCase()) {
-      case 'low':
-        return 'success';
-      case 'medium':
-        return 'warning';
-      case 'high':
-        return 'error';
-      default:
-        return 'default';
-    }
-  };
-
-  const getStatusColor = (status) => {
-    switch (status?.toLowerCase()) {
-      case 'active':
-        return 'primary';
-      case 'completed':
-        return 'success';
-      case 'closed':
-        return 'default';
-      case 'on hold':
-        return 'warning';
-      default:
-        return 'default';
-    }
-  };
-
-  const getProjectTypeIcon = (type) => {
-    switch (type?.toLowerCase()) {
-      case 'coding':
-        return <CodeIcon />;
-      case 'documentation':
-        return <DescriptionIcon />;
-      default:
-        return <CodeIcon />;
-    }
-  };
-
-  const formatDate = (date) => {
-    if (!date) return 'Not set';
-    return new Date(date).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
-  };
-
-  const renderSkeleton = () => (
-    <Grid container spacing={3}>
-      {[1, 2, 3].map((item) => (
-        <Grid item xs={12} key={item}>
-          <Skeleton 
-            variant="rectangular" 
-            height={150} 
-            sx={{ 
-              borderRadius: 2,
-              minHeight: 150,
-            }} 
-          />
-        </Grid>
-      ))}
-    </Grid>
-  );
-
-  if (loading) {
-    return (
-      <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
-        {renderSkeleton()}
-      </Container>
-    );
-  }
-
+  // ─── RENDER ───────────────────────────────────────────────────────────────
   return (
-    <Container maxWidth="xl" sx={{ mt: 4, mb: 4 }}>
-      {/* Header */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
+    <Container maxWidth="xl" sx={{ mt: 4, mb: 8 }}>
+
+      {/* ── PAGE HEADER ─────────────────────────────────────────────────────── */}
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 4, flexWrap: 'wrap', gap: 2 }}>
         <Box>
-          <Typography variant="h4" component="h1" fontWeight="bold" gutterBottom>
+          <Typography
+            variant="h4"
+            component="h1"
+            fontWeight={700}
+            letterSpacing="-0.02em"
+            gutterBottom
+          >
             Projects
           </Typography>
-          <Typography variant="body1" >
+          <Typography variant="body2" color="text.secondary">
             Manage and track all your projects in one place
           </Typography>
         </Box>
-        <Box sx={{ display: 'flex', gap: 2 }}>
-          <Tooltip title="Change view">
-            <ToggleButtonGroup
-              value={viewMode}
-              exclusive
-              onChange={(e, newView) => newView && setViewMode(newView)}
+
+        {/* Live status summary pills — from DB data */}
+        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'center', pt: 0.5 }}>
+          {counts.open > 0 && (
+            <Chip
+              label={`${counts.open} Open`}
               size="small"
-              sx={{ height: '40px' }}
-            >
-              
-              
-            </ToggleButtonGroup>
-          </Tooltip>
+              sx={{ bgcolor: '#eef3ff', color: '#2a6ef5', border: '1px solid #2a6ef530', fontWeight: 600, fontSize: '0.72rem' }}
+            />
+          )}
+          {counts.overdue > 0 && (
+            <Chip
+              label={`${counts.overdue} Overdue`}
+              size="small"
+              sx={{ bgcolor: '#fef2f2', color: '#dc2626', border: '1px solid #dc262630', fontWeight: 600, fontSize: '0.72rem' }}
+            />
+          )}
+          {counts.closed > 0 && (
+            <Chip
+              label={`${counts.closed} Closed`}
+              size="small"
+              sx={{ bgcolor: '#f1f5f9', color: '#64748b', border: '1px solid #64748b30', fontWeight: 600, fontSize: '0.72rem' }}
+            />
+          )}
+
+          {/* New Project button — same handler as original */}
           <Tooltip title="Create New Project">
             <IconButton
-              color="primary"
-              variant="contained"
               onClick={handleCreateProject}
-  sx={{
-    bgcolor: '#13a2a2ff',         // your custom background color
-    color: '#ffffff',              // your icon color
-    '&:hover': { bgcolor: '#035757ff' }, // hover background color
-    borderRadius: 2,               // rounded corners
-    px: 3,                         // horizontal padding
-    textTransform: 'none',         // optional for text
-    boxShadow: '0 2px 12px rgba(0,0,0,0.1)', // subtle shadow
-  }}
+              sx={{
+                bgcolor: '#13a2a2',
+                color: '#fff',
+                borderRadius: 2,
+                px: 2,
+                py: 0.8,
+                ml: 1,
+                fontSize: '0.82rem',
+                fontWeight: 600,
+                gap: 0.5,
+                boxShadow: '0 2px 12px rgba(0,0,0,0.1)',
+                '&:hover': { bgcolor: '#035757' },
+              }}
             >
-              <AddIcon sx={{ mr: 1 }} />
+              <AddIcon sx={{ fontSize: 18 }} />
               New Project
             </IconButton>
           </Tooltip>
         </Box>
       </Box>
 
+      {/* ── ERROR BANNER ────────────────────────────────────────────────────── */}
       {error && (
-        <Alert severity="error" sx={{ mb: 3, borderRadius: 2 }}>
+        <Alert
+          severity="error"
+          sx={{ mb: 3, borderRadius: 2 }}
+          action={
+            <IconButton size="small" color="inherit" onClick={fetchProjects}>
+              Retry
+            </IconButton>
+          }
+        >
           {error}
         </Alert>
       )}
 
-      {/* Filters and Search */}
-      <Paper 
-        elevation={0}
+      {/* ── TOOLBAR: Search + Filter tabs ────────────────────────────────────── */}
+      <Box
         sx={{
-          p: 2,
-          mb: 3,
-          borderRadius: 3,
+          display: 'flex', alignItems: 'center',
+          gap: 2, mb: 2, flexWrap: 'wrap',
+          p: 1.5, borderRadius: 3,
+          bgcolor: alpha(theme.palette.background.paper, 0.8),
           border: `1px solid ${theme.palette.divider}`,
-          backgroundColor: alpha(theme.palette.background.paper, 0.8),
           backdropFilter: 'blur(8px)',
-          bgcolor: '#efeef35c',
         }}
       >
-        <Grid container spacing={2} alignItems="center">
-          <Grid item xs={12} md={4}>
-            <TextField
-              fullWidth
-              placeholder="Search projects..."
-              value={searchQuery}
-              onChange={handleSearchChange}
-              size="small"
-              
-              InputProps={{
-                sx: { borderRadius: 3, bgcolor: 'background.paper' },
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <SearchIcon color="action" />
-                  </InputAdornment>
-                ),
-              }}
-              variant="outlined"
-            />
-          </Grid>
-          
-          <Grid item xs={12} md={5}>
-            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-              <Chip
-                icon={<FilterListIcon />}
-                label="Filter"
-                variant="outlined"
-                onClick={() => {}}
-                sx={{ borderRadius: 2, px: 1 }}
-              />
-              <ToggleButtonGroup
-                value={filter}
-                exclusive
-                onChange={handleFilterChange}
-                size="small"
-                sx={{
-                  '& .MuiToggleButton-root': {
-                    px: 2,
-                    borderRadius: 2,
-                    border: '1px solid',
-                    borderColor: 'divider',
-                    '&.Mui-selected': {
-                     bgcolor: '#2db1b1ff',
-                      color: 'primary.contrastText',
-                      '&:hover': {
-                        bgcolor: '#58c8c8ff',
-                      },
-                    },
-                  },
-                }}
-              >
-                <ToggleButton value="all">All</ToggleButton>
-                <ToggleButton value="mine">My Projects</ToggleButton>
-                <ToggleButton value="assigned">Assigned</ToggleButton>
-              </ToggleButtonGroup>
-            </Box>
-          </Grid>
-          
-          <Grid item xs={12} md={3} sx={{ ml: 'auto' }}>
-            <TextField
-              select
-              fullWidth
-              size="small"
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-              SelectProps={{
-                native: true,
-                IconComponent: SortIcon,
-                sx: { '& .MuiSelect-icon': { mr: 1 } },
-              }}
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: 3,
-                  bgcolor: 'background.paper',
-                },
-              }}
-              variant="outlined"
-            >
-              <option value="recent">Most Recent</option>
-              <option value="name">Name (A-Z)</option>
-              <option value="dueDate">Due Date</option>
-            </TextField>
-          </Grid>
-        </Grid>
-      </Paper>
+        {/* Search — only control kept from original toolbar */}
+        <TextField
+          placeholder="Search projects…"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          size="small"
+          sx={{ width: 280 }}
+          InputProps={{
+            sx: { borderRadius: 2.5, bgcolor: 'background.paper', fontSize: '0.85rem' },
+            startAdornment: (
+              <InputAdornment position="start">
+                <SearchIcon sx={{ fontSize: 18, color: 'text.disabled' }} />
+              </InputAdornment>
+            ),
+            endAdornment: searchQuery ? (
+              <InputAdornment position="end">
+                <IconButton size="small" onClick={() => setSearchQuery('')} edge="end">
+                  ×
+                </IconButton>
+              </InputAdornment>
+            ) : null,
+          }}
+        />
 
-      {/* Results Count */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-        <Typography variant="subtitle2" color="text.secondary">
-          Showing <b>{filteredProjects.length}</b> {filteredProjects.length === 1 ? 'project' : 'projects'}
-        </Typography>
-      </Box>
-
-      {/* Project List */}
-      {filteredProjects.length === 0 ? (
-        <Paper
-          elevation={0}
+        {/* Filter tabs — All / My Projects / Assigned */}
+        <ToggleButtonGroup
+          value={filter}
+          exclusive
+          onChange={handleFilterChange}
+          size="small"
           sx={{
-            textAlign: 'center',
-            py: 8,
-            px: 2,
-            borderRadius: 3,
-            border: `2px dashed ${theme.palette.divider}`,
-            backgroundColor: alpha(theme.palette.background.paper, 0.6),
-            transition: 'all 0.3s ease',
-            '&:hover': {
-              borderColor: theme.palette.primary.main,
-              backgroundColor: alpha(theme.palette.primary.light, 0.05),
+            '& .MuiToggleButton-root': {
+              px: 2, py: 0.5,
+              fontSize: '0.78rem',
+              fontWeight: 500,
+              textTransform: 'none',
+              borderRadius: '8px !important',
+              border: '1px solid',
+              borderColor: 'divider',
+              color: 'text.secondary',
+              '&.Mui-selected': {
+                bgcolor: '#13a2a2',
+                color: '#fff',
+                borderColor: '#13a2a2',
+                '&:hover': { bgcolor: '#0e8a8a' },
+              },
             },
           }}
         >
-          <Box
-            sx={{
-              width: 80,
-              height: 80,
-              borderRadius: '50%',
-              bgcolor: alpha(theme.palette.primary.light, 0.1),
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              margin: '0 auto 20px',
-            }}
-          >
-            <SearchIcon color="disabled" sx={{ fontSize: 40 }} />
-          </Box>
-          <Typography variant="h6" color="text.secondary" gutterBottom>
-            {searchQuery ? 'No matching projects found' : 'No projects here yet'}
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 3, maxWidth: 500, mx: 'auto' }}>
-            {searchQuery
-              ? 'Try adjusting your search or filters to find what you\'re looking for.'
-              : filter === 'mine'
-              ? 'Get started by creating your first project.'
-              : 'There are currently no projects available. Check back later or create a new one.'}
-          </Typography>
-          {(filter === 'mine' || filter === 'all') && !searchQuery && (
-            <IconButton
-              onClick={handleCreateProject}
+          <ToggleButton value="all">
+            All
+            {counts.all > 0 && (
+              <Box component="span" sx={{ ml: 0.8, fontSize: '0.68rem', opacity: 0.75 }}>
+                {counts.all}
+              </Box>
+            )}
+          </ToggleButton>
+          <ToggleButton value="mine">My Projects</ToggleButton>
+          <ToggleButton value="assigned">Assigned</ToggleButton>
+        </ToggleButtonGroup>
+
+        {/* Result count — right-aligned */}
+        <Typography variant="caption" color="text.disabled" sx={{ ml: 'auto', fontFamily: 'monospace' }}>
+          {loading
+            ? 'Loading…'
+            : `${filteredProjects.length} of ${projects.length} projects`}
+        </Typography>
+      </Box>
+
+      {/* ── TABLE CONTAINER ──────────────────────────────────────────────────── */}
+      <Box
+        sx={{
+          borderRadius: 3,
+          border: `1px solid ${theme.palette.divider}`,
+          bgcolor: 'background.paper',
+          overflow: 'hidden',
+          boxShadow: '0 1px 4px rgba(0,0,0,0.04), 0 4px 20px rgba(0,0,0,0.04)',
+        }}
+      >
+        {/* ── COLUMN HEADERS ──────────────────────────────────────────────── */}
+        <Box
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: '1fr 110px 100px 110px 110px 130px 36px',
+            alignItems: 'center',
+            gap: 2,
+            px: 2.5,
+            height: 40,
+            bgcolor: '#13a2a267',
+            borderBottom: `1px solid ${theme.palette.divider}`,
+          }}
+        >
+          <ColHeader label="Project"    sortKey="name"       currentSort={sortBy} currentDir={sortDir} onSort={handleSort} />
+          <ColHeader label="Status"     sortKey="status"     currentSort={sortBy} currentDir={sortDir} onSort={handleSort} />
+          <ColHeader label="Complexity" sortKey="complexity" currentSort={sortBy} currentDir={sortDir} onSort={handleSort} />
+          <ColHeader label="Start"      sortKey={null}       currentSort={sortBy} currentDir={sortDir} onSort={handleSort} />
+          <ColHeader label="Due"        sortKey="dueDate"    currentSort={sortBy} currentDir={sortDir} onSort={handleSort} />
+          <ColHeader label="Team"       sortKey="members"    currentSort={sortBy} currentDir={sortDir} onSort={handleSort} />
+          <Box />
+        </Box>
+
+        {/* ── LOADING SKELETONS ────────────────────────────────────────────── */}
+        {loading && [0, 1, 2, 3, 4, 5].map((i) => <SkeletonRow key={i} />)}
+
+        {/* ── EMPTY STATE ──────────────────────────────────────────────────── */}
+        {!loading && filteredProjects.length === 0 && (
+          <Box sx={{ textAlign: 'center', py: 10, px: 3 }}>
+            <Box
               sx={{
-                bgcolor: 'primary.main',
-                color: 'white',
-                borderRadius: 3,
-                px: 3,
-                py: 1,
-                textTransform: 'none',
-                '&:hover': {
-                  bgcolor: 'primary.dark',
-                },
+                width: 72, height: 72, borderRadius: '50%',
+                bgcolor: alpha(theme.palette.action.hover, 0.5),
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                mx: 'auto', mb: 2,
               }}
             >
-              <AddIcon sx={{ mr: 1 }} />
-              Create New Project
-            </IconButton>
-          )}
-        </Paper>
-      ) : (
-        <Grid container spacing={3}>
-          {filteredProjects.map((project) => (
-            <Grid item xs={12} md={6} key={project._id} sx={{ display: 'flex' }}>
-              <Card
-                elevation={0}
-                onClick={() => handleProjectClick(project._id)}
+              <SearchIcon sx={{ fontSize: 34, color: 'text.disabled' }} />
+            </Box>
+            <Typography variant="h6" color="text.secondary" gutterBottom>
+              {searchQuery ? 'No matching projects found' : 'No projects here yet'}
+            </Typography>
+            <Typography variant="body2" color="text.disabled" sx={{ mb: 3, maxWidth: 440, mx: 'auto' }}>
+              {searchQuery
+                ? "Try adjusting your search to find what you're looking for."
+                : filter === 'mine'
+                ? 'Get started by creating your first project.'
+                : 'No projects available. Check back later or create a new one.'}
+            </Typography>
+            {!searchQuery && (filter === 'all' || filter === 'mine') && (
+              <IconButton
+                onClick={handleCreateProject}
                 sx={{
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease',
-                  borderRadius: 2,
-                  border: '1px solid',
-                  borderColor: 'divider',
-                  height: 320, // Fixed height
-                  minHeight: 320, // Prevent collapsing
-                  width: '100%',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  overflow: 'hidden',
-                  '&:hover': {
-                    transform: 'translateY(-2px)',
-                    boxShadow: theme.shadows[4],
-                    borderColor: 'transparent',
-                  },
+                  bgcolor: '#13a2a2', color: '#fff',
+                  borderRadius: 2, px: 2.5, py: 0.8,
+                  fontSize: '0.82rem', fontWeight: 600, gap: 0.5,
+                  '&:hover': { bgcolor: '#035757' },
                 }}
               >
-                <CardContent sx={{ 
-                  p: 3, 
-                  display: 'flex', 
-                  flexDirection: 'column', 
-                  flex: '1 1 auto',
-                  height: '100%',
-                  boxSizing: 'border-box'
-                }}>
-                  <Grid container spacing={1.5} sx={{ height: '100%', flexWrap: 'nowrap', flexDirection: 'column' }}>
-                    {/* Project Title and Type */}
-                    <Grid item xs={12} sx={{ flexShrink: 0 }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, minHeight: 'auto', mb: 1 }}>
-                        <Avatar
-                          sx={{
-                            bgcolor: alpha(theme.palette.primary.main, 0.1),
-                            color: 'primary.main',
-                            width: 40,
-                            height: 40,
-                          }}
-                        >
-                          {getProjectTypeIcon(project.projectType)}
-                        </Avatar>
-                        <Box sx={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
-                          <Typography 
-                            variant="h6" 
-                            fontWeight="600" 
-                            noWrap
-                            sx={{ 
-                              color: 'text.primary',
-                              mb: 0.5,
-                              '&:hover': {
-                                color: 'primary.main',
-                              },
-                            }}
-                          >
-                            {project.title}
-                          </Typography>
-                        </Box>
-                      </Box>
-                    </Grid>
+                <AddIcon sx={{ fontSize: 18 }} />
+                Create New Project
+              </IconButton>
+            )}
+          </Box>
+        )}
 
-                    {/* Status and Complexity */}
-                    <Grid item xs={12} sx={{ mt: 0.5, flexShrink: 0 }}>
-                      <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-                        <Chip
-                          label={project.status || 'Active'}
-                          color={getStatusColor(project.status)}
-                          size="small"
-                          variant="filled"
-                          sx={{
-                            bgcolor: `${getStatusColor(project.status)}.light`,
-                            color: `${getStatusColor(project.status)}.dark`,
-                          }}
-                        />
-                        <Chip
-                          label={`${project.complexity || 'Medium'} Complexity`}
-                          color={getComplexityColor(project.complexity)}
-                          size="small"
-                          variant="outlined"
-                          sx={{
-                            borderColor: `${getComplexityColor(project.complexity)}.main`,
-                            color: `${getComplexityColor(project.complexity)}.dark`,
-                          }}
-                        />
-                      </Box>
-                    </Grid>
+        {/* ── PROJECT ROWS — 100% from DB data, zero hardcoding ────────────── */}
+        {!loading && filteredProjects.map((project, index) => (
+          <ProjectRow
+            key={project._id}
+            project={project}
+            index={index}
+            userId={userId}
+            onClick={handleProjectClick}
+          />
+        ))}
 
-                    {/* Project Details */}
-                    <Grid item xs={12} sx={{ mt: 1 }}>
-                      <Divider sx={{ my: 0.5, borderColor: 'divider' }} />
-                      <Grid container spacing={1.5} sx={{ mt: 0, height: '100%' }}>
-                        {/* Created By */}
-                        <Grid item xs={6} sx={{ display: 'flex', minHeight: 48 }}>
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%' }}>
-                            <Avatar 
-                              sx={{ 
-                                width: 32, 
-                                height: 32,
-                                bgcolor: project.creatorId === (user._id || user.id) 
-                                  ? 'primary.light' 
-                                  : 'grey.200',
-                                color: project.creatorId === (user._id || user.id) 
-                                  ? 'primary.contrastText' 
-                                  : 'text.secondary',
-                                fontSize: 14,
-                                fontWeight: 600,
-                              }}
-                            >
-                              {project.creatorId === (user._id || user.id) 
-                                ? 'You'.charAt(0).toUpperCase() 
-                                : (
-                                  project.creator?.name?.charAt(0) || 
-                                  project.creatorName?.charAt(0) || 
-                                  project.creator?.firstName?.charAt(0) || 
-                                  project.creator?.lastName?.charAt(0) || 
-                                  'U'
-                                ).toUpperCase()}
-                            </Avatar>
-                            <Box sx={{ minWidth: 0, overflow: 'hidden' }}>
-                              <Typography variant="caption" color="text.secondary" display="block" noWrap sx={{ fontSize: '0.7rem', color: 'text.secondary' }}>
-                                Created By
-                              </Typography>
-                              <Typography variant="body2" noWrap sx={{ fontSize: '0.875rem', fontWeight: 500 }}>
-                                {project.creatorId === (user._id || user.id)
-                                  ? 'You'
-                                  : project.creator?.name || 
-                                    project.creatorName || 
-                                    (project.creator?.firstName && project.creator?.lastName ? `${project.creator.firstName} ${project.creator.lastName}`.trim() : 
-                                      project.creator?.firstName || 
-                                      project.creator?.lastName || 
-                                      'Unknown')}
-                              </Typography>
-                            </Box>
-                          </Box>
-                        </Grid>
-
-                        {/* Start Date */}
-                        <Grid item xs={6} sx={{ display: 'flex', minHeight: 48 }}>
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%' }}>
-                            <Box 
-                              sx={{ 
-                                width: 36, 
-                                height: 36, 
-                                borderRadius: '8px',
-                                bgcolor: 'grey.100',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                color: 'text.secondary',
-                                flexShrink: 0,
-                              }}
-                            >
-                              <CalendarTodayIcon sx={{ fontSize: '1rem' }} />
-                            </Box>
-                            <Box sx={{ minWidth: 0, overflow: 'hidden' }}>
-                              <Typography variant="caption" color="text.secondary" display="block" noWrap sx={{ fontSize: '0.7rem', color: 'text.secondary' }}>
-                                Start Date
-                              </Typography>
-                              <Typography variant="body2" noWrap sx={{ fontSize: '0.875rem', fontWeight: 500 }}>
-                                {formatDate(project.createdAt)}
-                              </Typography>
-                            </Box>
-                          </Box>
-                        </Grid>
-
-                        {/* Due Date */}
-                        <Grid item xs={6} sx={{ display: 'flex', minHeight: 48 }}>
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%' }}>
-                            <Box 
-                              sx={{ 
-                                width: 36, 
-                                height: 36, 
-                                borderRadius: '8px',
-                                bgcolor: 'grey.100',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                color: 'text.secondary',
-                                flexShrink: 0,
-                              }}
-                            >
-                              <CalendarTodayIcon sx={{ fontSize: '1rem' }} />
-                            </Box>
-                            <Box sx={{ minWidth: 0, overflow: 'hidden' }}>
-                              <Typography variant="caption" color="text.secondary" display="block" noWrap sx={{ fontSize: '0.7rem', color: 'text.secondary' }}>
-                                Due Date
-                              </Typography>
-                              <Typography 
-                                variant="body2" 
-                                fontWeight="500"
-                                sx={{
-                                  color: project.dueDate && new Date(project.dueDate) < new Date() 
-                                    ? 'error.main' 
-                                    : 'inherit',
-                                }}
-                              >
-                                {formatDate(project.dueDate)}
-                                {project.dueDate && new Date(project.dueDate) < new Date() && (
-                                  <Chip 
-                                    label="Overdue" 
-                                    size="small" 
-                                    sx={{
-                                      ml: 1,
-                                      height: 20,
-                                      fontSize: '0.6rem',
-                                      fontWeight: 600,
-                                      bgcolor: 'error.light',
-                                      color: 'error.contrastText',
-                                      '& .MuiChip-label': {
-                                        px: 1,
-                                        py: 0.25,
-                                      },
-                                    }}
-                                  />
-                                )}
-                              </Typography>
-                            </Box>
-                          </Box>
-                        </Grid>
-
-                        {/* Members Count */}
-                        <Grid item xs={6} sx={{ display: 'flex', minHeight: 48 }}>
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%' }}>
-                            <Box 
-                              sx={{ 
-                                width: 36, 
-                                height: 36, 
-                                borderRadius: '8px',
-                                bgcolor: 'grey.100',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                color: 'text.secondary',
-                                flexShrink: 0,
-                              }}
-                            >
-                              <GroupIcon sx={{ fontSize: '1rem' }} />
-                            </Box>
-                            <Box sx={{ minWidth: 0, overflow: 'hidden' }}>
-                              <Typography variant="caption" color="text.secondary" display="block" noWrap sx={{ fontSize: '0.7rem', color: 'text.secondary' }}>
-                                Team Members
-                              </Typography>
-                              <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                                <AvatarGroup 
-                                  max={4}
-                                  sx={{ 
-                                    '& .MuiAvatar-root': { 
-                                      width: 24, 
-                                      height: 24, 
-                                      fontSize: '0.7rem',
-                                      border: '2px solid white',
-                                      '&:not(:first-of-type)': {
-                                        marginLeft: '-8px',
-                                      },
-                                    },
-                                  }}
-                                >
-                                  {project.memberIds?.slice(0, 5).map((memberId, index) => {
-                                    const uniqueKey = memberId ? `member-${memberId}` : `member-${index}`;
-                                    return (
-                                      <Avatar 
-                                        key={uniqueKey}
-                                        sx={{ 
-                                          bgcolor: memberId === (user._id || user.id) 
-                                            ? 'primary.light' 
-                                            : 'grey.300',
-                                          color: memberId === (user._id || user.id) 
-                                            ? 'primary.contrastText' 
-                                            : 'text.secondary',
-                                          fontSize: '0.7rem',
-                                          fontWeight: 600,
-                                        }}
-                                      >
-                                        {memberId === (user._id || user.id) 
-                                          ? 'You'.charAt(0).toUpperCase() 
-                                          : String.fromCharCode(65 + (index % 26))}
-                                      </Avatar>
-                                    );
-                                  })}
-                                </AvatarGroup>
-                                {project.memberIds?.length > 5 && (
-                                  <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>
-                                    +{project.memberIds.length - 5} more
-                                  </Typography>
-                                )}
-                              </Box>
-                            </Box>
-                          </Box>
-                        </Grid>
-                      </Grid>
-                    </Grid>
-                  </Grid>
-                </CardContent>
-              </Card>
-            </Grid>
-          ))}
-        </Grid>
-      )}
+        {/* ── TABLE FOOTER ─────────────────────────────────────────────────── */}
+        {!loading && filteredProjects.length > 0 && (
+          <Box
+            sx={{
+              display: 'flex', justifyContent: 'space-between',
+              alignItems: 'center', px: 2.5, py: 1.2,
+              borderTop: `1px solid ${theme.palette.divider}`,
+              bgcolor: '#13a2a267',
+            }}
+          >
+            <Typography variant="caption" color="text.disabled" sx={{ fontFamily: 'monospace' }}>
+              Showing {filteredProjects.length} project{filteredProjects.length !== 1 ? 's' : ''}
+              {filter !== 'all' && ` · ${filter}`}
+            </Typography>
+            <Typography variant="caption" color="text.disabled" sx={{ fontFamily: 'monospace' }}>
+              {counts.open} open · {counts.overdue} overdue · {counts.closed} closed
+            </Typography>
+          </Box>
+        )}
+      </Box>
     </Container>
   );
 };
