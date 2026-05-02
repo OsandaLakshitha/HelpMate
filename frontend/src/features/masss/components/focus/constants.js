@@ -1,8 +1,11 @@
 // frontend/src/features/masss/components/focus/constants.js
 
-export const WORK_DURATION        = 25 * 60
-export const SHORT_BREAK          = 5  * 60
-export const LONG_BREAK           = 15 * 60
+// export const WORK_DURATION        = 25 * 60
+// export const SHORT_BREAK          = 5  * 60
+// export const LONG_BREAK           = 15 * 60
+export const WORK_DURATION        = 10
+export const SHORT_BREAK          = 4
+export const LONG_BREAK           = 3
 export const SESSIONS_BEFORE_LONG = 4
 
 export const MODE = {

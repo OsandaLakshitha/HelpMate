@@ -1,10 +1,26 @@
 // src/features/masss/components/exams/ExamList.jsx
 
-import React from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { Calendar } from 'lucide-react'
 import { ExamCard } from './ExamCard'
 
-export const ExamList = ({ exams, onAddClick }) => {
+export const ExamList = ({ exams, onAddClick, onEdit, onDelete }) => {
+  const [openMenuId, setOpenMenuId] = useState(null)
+  const listRef = useRef(null)
+
+  useEffect(() => {
+    if (!openMenuId) return
+
+    const handler = (e) => {
+      if (listRef.current && !listRef.current.contains(e.target)) {
+        setOpenMenuId(null)
+      }
+    }
+
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [openMenuId])
+
   if (!exams || exams.length === 0) {
     return (
       <div className="p-8 text-center bg-masss-white border border-masss-mint rounded-2xl">
@@ -24,9 +40,18 @@ export const ExamList = ({ exams, onAddClick }) => {
   }
 
   return (
-    <div className="bg-masss-white border border-masss-mint rounded-2xl overflow-hidden divide-y divide-masss-mint">
-      {exams.map(ex => (
-        <ExamCard key={ex._id} exam={ex} />
+    <div ref={listRef} className="flex-1 overflow-y-auto pr-2 space-y-2 pb-20">
+      {exams.map((ex) => (
+        <ExamCard
+          key={ex._id}
+          exam={ex}
+          onEdit={onEdit}
+          onDelete={onDelete}
+          menuOpen={openMenuId === ex._id}
+          onMenuToggle={(id) =>
+            setOpenMenuId((prev) => (prev === id ? null : id))
+          }
+        />
       ))}
     </div>
   )

@@ -168,7 +168,7 @@ export const MassSidebar = () => {
       </div>
 
       {/* ── Nav items ─────────────────────────────────────────────── */}
-      <nav className="masss-scroll flex-1 p-2 overflow-y-auto flex flex-col gap-1 mt-10">
+      <nav className="masss-scroll flex-1 p-2 overflow-hidden flex flex-col gap-1 mt-10 ">
         {NAV_ITEMS.map(item => (
           <NavItem key={item.to} item={item} collapsed={sidebarCollapsed} />
         ))}
