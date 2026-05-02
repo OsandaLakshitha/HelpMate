@@ -29,11 +29,38 @@ const { tasks: allTasks, updateTask } = useTasks()
 
   const { stateVector } = useStateVector(activeSlot)
   const slotLabels = stateVector?.slot_labels ?? {}
- const { preferences } = useProfile()
+const { preferences, routine } = useProfile()
 
   const schedule = view === 'rl' ? rlSchedule : heuristicSchedule
   const loading  = view === 'rl' ? rlLoading  : heuristicLoading
   const refetch  = view === 'rl' ? refetchRl  : refetchHeuristic
+
+  // Get today's day name e.g. "monday"
+const todayName = new Date().toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase()
+
+// Assign a routine event to a slot based on its start_time vs slot windows
+const getRoutineSlot = (event) => {
+  const [h] = (event.start_time || '0:0').split(':').map(Number)
+  for (const pref of preferences) {
+    if (!pref.start_time || !pref.end_time) continue
+    const [sh] = pref.start_time.split(':').map(Number)
+    const [eh] = pref.end_time.split(':').map(Number)
+    if (h >= sh && h < eh) return pref.slot_name
+  }
+  // Fallback to legacy boundaries
+  if (h >= 6  && h < 12) return 'morning'
+  if (h >= 12 && h < 18) return 'afternoon'
+  return 'evening'
+}
+
+const ACTIVITY_BADGE = {
+  class:  'bg-masss-mint text-masss-accent',
+  work:   'bg-amber-100 text-amber-600',
+  habit:  'bg-purple-100 text-purple-600',
+  sleep:  'bg-slate-100 text-slate-500',
+}
+
+const todayRoutine = routine.filter(e => e.day_of_week === todayName)
 
   return (
     <PageWrapper>
@@ -126,6 +153,21 @@ const { tasks: allTasks, updateTask } = useTasks()
 
                 {/* Tasks */}
                 <div className="p-3 space-y-2 min-h-[120px]">
+                    {todayRoutine
+    .filter(e => getRoutineSlot(e) === slot)
+    .map(e => (
+      <div
+        key={e.id}
+        className="px-3 py-2 rounded-xl border border-dashed border-masss-mint bg-masss-bg flex items-center gap-2"
+      >
+        <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold capitalize ${ACTIVITY_BADGE[e.activity_type] || 'bg-masss-mint text-masss-accent'}`}>
+          {e.activity_type}
+        </span>
+        <p className="text-xs font-medium text-masss-heading truncate flex-1">{e.name}</p>
+        <span className="text-[10px] text-masss-heading/40 shrink-0">{e.start_time}–{e.end_time}</span>
+      </div>
+    ))
+  }
                   {tasks.length === 0 ? (
                     <div className="h-20 flex items-center justify-center">
                       <p className="text-xs text-masss-heading/30">No tasks scheduled</p>
