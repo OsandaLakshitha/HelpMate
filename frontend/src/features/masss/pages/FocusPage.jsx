@@ -17,7 +17,7 @@ export default function FocusPage() {
   const { taskId: urlTaskId } = useParams()
   const navigate = useNavigate()
   const location = useLocation()
-  const { tasks } = useTasks()
+ const { tasks, updateTask } = useTasks()
   const { startSession, endSession } = useSessions()
 
   const {
@@ -27,6 +27,8 @@ export default function FocusPage() {
     focusCompleted: completed, setFocusCompleted: setCompleted,
     focusActive, setFocusActive,
     focusTaskId, setFocusTaskId,
+    // Add to the useMasss destructure
+focusTaskName, setFocusTaskName,
     resetFocusTimer,
   } = useMasss()
 
@@ -37,6 +39,11 @@ export default function FocusPage() {
   // FIX 1: declared missing state — was calling setShowConflict without declaring it,
   // causing a ReferenceError crash every time handleStart ran with an active session.
   const [showConflict, setShowConflict] = useState(false)
+  useEffect(() => {
+  if ('Notification' in window && Notification.permission === 'default') {
+    Notification.requestPermission()
+  }
+}, [])
 
   // --- SESSION COUNT & SCOPE LOGIC ---
   const activeTaskId = urlTaskId || focusTaskId
@@ -62,18 +69,29 @@ export default function FocusPage() {
   // The > 0 guard prevents a false long-break trigger on first load (0 % 4 === 0).
   const nextBreakIsLong = completedSessions > 0 && completedSessions % SESSIONS_BEFORE_LONG === 0
   const breakTotal = nextBreakIsLong ? LONG_BREAK : SHORT_BREAK
+ 
 
   // --- TIMER EFFECT ---
-  useEffect(() => {
-    if (mode !== MODE.RUNNING && mode !== MODE.BREAK) return
-    if (mode === MODE.RUNNING && seconds >= WORK_DURATION) {
-      setMode(MODE.FEEDBACK)
-    }
-    if (mode === MODE.BREAK && seconds >= breakTotal) {
-      setSeconds(0)
-      setMode(MODE.LOBBY)
-    }
-  }, [seconds, mode, breakTotal, setMode, setSeconds])
+//   useEffect(() => {
+//     if (mode !== MODE.RUNNING && mode !== MODE.BREAK) return
+//      if (mode === MODE.RUNNING && seconds >= WORK_DURATION) {
+//   setMode(MODE.FEEDBACK)
+//   playDone()
+
+//   fireNotification(
+//     '🎉 Session complete!',
+//     `Great work on "${task?.name || 'your task'}". How was your focus?`
+//   )
+// }
+//    if (mode === MODE.BREAK && seconds >= breakTotal) {
+//   setSeconds(0)
+//   setMode(MODE.LOBBY)
+//   fireNotification(
+//     '⏰ Break over!',
+//     'Time to get back to work. Click to resume your session.'
+//   )
+// }
+//   }, [seconds, mode, breakTotal, setMode, setSeconds])
 
   // Guard: if navigated to a different task while a session is already active,
 // block the switch and show the conflict modal instead.
@@ -90,7 +108,23 @@ useEffect(() => {
   }
 }, [location.state, location.pathname, navigate])
 
+
+
+
   // --- ACTIONS ---
+//   const fireNotification = (title, body) => {
+//   if (!('Notification' in window) || Notification.permission !== 'granted') return
+//   const n = new Notification(title, {
+//     body,
+//     icon: '/favicon.ico',
+//     tag:  'masss-session',   // replaces previous notification instead of stacking
+//   })
+//   n.onclick = () => {
+//     window.focus()
+//     navigate(`/masss/focus/${activeTaskId}`)
+//     n.close()
+//   }
+// }
 
   const handleStart = async () => {
     if (focusActive && sessionId) {
@@ -104,6 +138,7 @@ useEffect(() => {
       const s = await startSession(activeTaskId)
       setSessionId(s._id)
       setFocusTaskId(activeTaskId)
+      setFocusTaskName(task?.name || '')
       setFocusActive(true)
       setSeconds(0)
       setMode(MODE.RUNNING)
@@ -158,14 +193,17 @@ useEffect(() => {
       setMode(MODE.BREAK_PROMPT)
     })
 
-  const handleCompleteTask = (rating) =>
-    endWith('completed', rating, () => {
+ const handleCompleteTask = (rating) =>
+    endWith('completed', rating, async () => {
+      if (activeTaskId) {
+        await updateTask(activeTaskId, { status: 'completed' })
+      }
       resetFocusTimer()
       navigate('/masss/tasks')
     })
 
   const handleStopForNow = (rating) =>
-    endWith('stopped', rating, () => {
+    endWith('completed', rating, () => {
       resetFocusTimer()
       navigate('/masss/sessions')
     })
@@ -185,6 +223,24 @@ useEffect(() => {
   setShowConflict(false)
   navigate(`/masss/focus/${focusTaskId}`) // send them back to the active session
 }
+
+const playDone = () => {
+  try {
+    const ctx = new AudioContext()
+    const osc = ctx.createOscillator()
+    const gain = ctx.createGain()
+    osc.connect(gain)
+    gain.connect(ctx.destination)
+    osc.frequency.value = 880
+    gain.gain.setValueAtTime(0.3, ctx.currentTime)
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.8)
+    osc.start(ctx.currentTime)
+    osc.stop(ctx.currentTime + 0.8)
+  } catch (e) {}
+}
+
+
+  
 
   return (
     <div className={cn(
@@ -232,6 +288,7 @@ useEffect(() => {
 
         navigate={navigate}
       />
+
 
     </div>
   )

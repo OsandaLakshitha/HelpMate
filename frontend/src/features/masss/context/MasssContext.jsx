@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react'
 import massApi from '../lib/massApi'
-import { MODE } from '../components/focus/constants'
+import { MODE, WORK_DURATION, SHORT_BREAK, LONG_BREAK, SESSIONS_BEFORE_LONG } from '../components/focus/constants'
 
 const MasssContext = createContext()
 
@@ -44,28 +44,30 @@ export const MasssProvider = ({ children }) => {
   const [focusCompleted, setFocusCompleted] = useState(() =>
     Number(localStorage.getItem('masss_completed')) || 0
   )
+  const [focusTaskName, setFocusTaskName] = useState(() =>
+    localStorage.getItem('masss_taskName') || ''
+  )
 
   const timerRef = useRef(null)
 
   // ── Persistence Logic: Save to LocalStorage ──
   useEffect(() => {
-    localStorage.setItem('masss_mode', focusMode)
-    localStorage.setItem('masss_seconds', focusSeconds)
-    localStorage.setItem('masss_active', focusActive)
+    localStorage.setItem('masss_mode',      focusMode)
+    localStorage.setItem('masss_seconds',   focusSeconds)
+    localStorage.setItem('masss_active',    focusActive)
     localStorage.setItem('masss_completed', focusCompleted)
 
-    if (focusTaskId) localStorage.setItem('masss_taskId', focusTaskId)
-    else localStorage.removeItem('masss_taskId')
+    if (focusTaskId)   localStorage.setItem('masss_taskId',   focusTaskId)
+    else               localStorage.removeItem('masss_taskId')
 
     if (focusSessionId) localStorage.setItem('masss_sessionId', focusSessionId)
-    else localStorage.removeItem('masss_sessionId')
-  }, [focusMode, focusSeconds, focusActive, focusTaskId, focusSessionId, focusCompleted])
+    else                localStorage.removeItem('masss_sessionId')
 
-  // ── Timer Logic ──
-  // FIX 4 (confirmed correct): the interval only runs when mode is RUNNING or BREAK,
-  // and focusActive is true. When the user pauses (mode → MODE.PAUSED), this effect
-  // re-runs, falls into the else branch, and clears the interval immediately.
-  // The timer correctly stops on pause without any additional changes needed.
+    if (focusTaskName) localStorage.setItem('masss_taskName', focusTaskName)
+    else               localStorage.removeItem('masss_taskName')
+  }, [focusMode, focusSeconds, focusActive, focusTaskId, focusSessionId, focusCompleted, focusTaskName])
+
+  // ── Timer Tick ──
   useEffect(() => {
     if ((focusMode === MODE.RUNNING || focusMode === MODE.BREAK) && focusActive) {
       timerRef.current = setInterval(() => {
@@ -76,6 +78,53 @@ export const MasssProvider = ({ children }) => {
     }
     return () => clearInterval(timerRef.current)
   }, [focusMode, focusActive])
+
+  // ── Notification Permission ──
+  useEffect(() => {
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission()
+    }
+  }, [])
+
+  // ── Notification Helper ──
+  const fireNotification = (title, body) => {
+    if (!('Notification' in window) || Notification.permission !== 'granted') return
+    const n = new Notification(title, {
+      body,
+
+      tag:  'masss-session',
+    })
+    n.onclick = () => {
+      window.focus()
+      if (focusTaskId) window.location.href = `/masss/focus/${focusTaskId}`
+      n.close()
+    }
+  }
+
+  // ── Timer Overflow Check (global — works on any page) ──
+  useEffect(() => {
+    if (focusMode !== MODE.RUNNING && focusMode !== MODE.BREAK) return
+
+    const nextBreakIsLong = focusCompleted > 0 && focusCompleted % SESSIONS_BEFORE_LONG === 0
+    const breakTotal = nextBreakIsLong ? LONG_BREAK : SHORT_BREAK
+
+    if (focusMode === MODE.RUNNING && focusSeconds >= WORK_DURATION) {
+      setFocusMode(MODE.FEEDBACK)
+      fireNotification(
+        '🎉 Session complete!',
+        `Great work on "${focusTaskName || 'your task'}". How was your focus?`
+      )
+    }
+
+    if (focusMode === MODE.BREAK && focusSeconds >= breakTotal) {
+      setFocusSeconds(0)
+      setFocusMode(MODE.LOBBY)
+      fireNotification(
+        '⏰ Break over!',
+        'Time to get back to work. Click to resume your session.'
+      )
+    }
+  }, [focusSeconds, focusMode])
 
   // ── Onboarding Logic ──
   const checkOnboarding = async () => {
@@ -95,25 +144,22 @@ export const MasssProvider = ({ children }) => {
   // ── Helpers ──
   const toggleSidebar = () => setSidebarCollapsed(prev => !prev)
 
-  // FIX 5 (confirmed correct): resetFocusTimer clears ALL focus state including
-  // focusActive → false. Called by handleCompleteTask and handleStopForNow in
-  // FocusPage, so focusActive is never left stale as true after a session ends.
   const resetFocusTimer = () => {
-    // Clear Local Storage
     localStorage.removeItem('masss_mode')
     localStorage.removeItem('masss_seconds')
     localStorage.removeItem('masss_active')
     localStorage.removeItem('masss_taskId')
     localStorage.removeItem('masss_sessionId')
     localStorage.removeItem('masss_completed')
+    localStorage.removeItem('masss_taskName')
 
-    // Clear State
     setFocusMode(MODE.LOBBY)
     setFocusSeconds(0)
     setFocusActive(false)
     setFocusTaskId(null)
     setFocusSessionId(null)
     setFocusCompleted(0)
+    setFocusTaskName('')
   }
 
   const value = {
@@ -125,12 +171,13 @@ export const MasssProvider = ({ children }) => {
     dashboardSummary,
     summaryLoading,
     summaryError,
-    focusMode, setFocusMode,
-    focusSeconds, setFocusSeconds,
-    focusActive, setFocusActive,
-    focusTaskId, setFocusTaskId,
+    focusMode,      setFocusMode,
+    focusSeconds,   setFocusSeconds,
+    focusActive,    setFocusActive,
+    focusTaskId,    setFocusTaskId,
     focusSessionId, setFocusSessionId,
     focusCompleted, setFocusCompleted,
+    focusTaskName,  setFocusTaskName,
     resetFocusTimer,
   }
 
