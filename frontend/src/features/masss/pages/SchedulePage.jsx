@@ -6,6 +6,7 @@ import { RefreshCw, Cpu, ListFilter } from 'lucide-react'
 import { PageWrapper, PageHeader, PageLoader } from '../components/layout/PageWrapper'
 import { useSchedule } from '../hooks/useSchedule'
 import { useStateVector } from '../hooks/useStateVector'
+import { useProfile } from '../hooks/useProfile'
 import { getCurrentSlot, slotDefaultLabel } from '../utils/slotUtils'
 
 const SLOTS = ['morning', 'afternoon', 'evening']
@@ -28,6 +29,7 @@ export default function SchedulePage() {
 
   const { stateVector } = useStateVector(activeSlot)
   const slotLabels = stateVector?.slot_labels ?? {}
+ const { preferences } = useProfile()
 
   const schedule = view === 'rl' ? rlSchedule : heuristicSchedule
   const loading  = view === 'rl' ? rlLoading  : heuristicLoading
@@ -110,8 +112,18 @@ export default function SchedulePage() {
                   {isCurrent && (
                     <span className="w-2 h-2 rounded-full bg-masss-accent animate-pulse shrink-0" />
                   )}
-                  <p className="font-semibold text-masss-heading text-sm">{label}</p>
-                  <span className="ml-auto text-xs text-masss-heading/50">
+                  <div className="flex flex-col min-w-0">
+                    <p className="font-semibold text-masss-heading text-sm">{label}</p>
+                    {(() => {
+                      const pref = preferences.find(p => p.slot_name === slot)
+                      return pref?.start_time && pref?.end_time ? (
+                        <p className="text-[10px] text-masss-heading/40 mt-0.5">
+                          {pref.start_time} - {pref.end_time}
+                        </p>
+                      ) : null
+                    })()}
+                  </div>
+                  <span className="ml-auto text-xs text-masss-heading/50 shrink-0">
                     {tasks.length} task{tasks.length !== 1 ? 's' : ''}
                   </span>
                 </div>
