@@ -3,6 +3,9 @@
 import React, { useState } from 'react'
 import { motion } from 'framer-motion'
 import { RefreshCw, Cpu, ListFilter } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { TaskRow } from '../components/tasks/TaskRow'
+import { useTasks } from '../hooks/useTasks'
 import { PageWrapper, PageHeader, PageLoader } from '../components/layout/PageWrapper'
 import { useSchedule } from '../hooks/useSchedule'
 import { useStateVector } from '../hooks/useStateVector'
@@ -11,13 +14,10 @@ import { getCurrentSlot, slotDefaultLabel } from '../utils/slotUtils'
 
 const SLOTS = ['morning', 'afternoon', 'evening']
 
-const PRIORITY_COLOURS = {
-  high:   'bg-red-100 text-red-600',
-  medium: 'bg-amber-100 text-amber-600',
-  low:    'bg-masss-mint text-masss-accent',
-}
 
 export default function SchedulePage() {
+  const navigate = useNavigate()
+const { tasks: allTasks, updateTask } = useTasks()
   const activeSlot = getCurrentSlot()
   const [view, setView] = useState('rl')
 
@@ -79,11 +79,7 @@ export default function SchedulePage() {
           <span className="px-3 py-1 rounded-full bg-masss-mint text-masss-accent text-xs font-semibold">
             {schedule.strategy_used === 'rl_ppo' ? '✦ AI-generated' : schedule.strategy_used}
           </span>
-          {schedule.work_intensity !== undefined && (
-            <span className="text-xs text-masss-heading/50">
-              Work intensity: {Math.round(schedule.work_intensity * 100)}%
-            </span>
-          )}
+        
         </div>
       )}
 
@@ -117,7 +113,7 @@ export default function SchedulePage() {
                     {(() => {
                       const pref = preferences.find(p => p.slot_name === slot)
                       return pref?.start_time && pref?.end_time ? (
-                        <p className="text-[10px] text-masss-heading/40 mt-0.5">
+                        <p className="text-[15px] text-masss-heading/40 mt-0.5 font-mono font">
                           {pref.start_time} - {pref.end_time}
                         </p>
                       ) : null
@@ -134,35 +130,21 @@ export default function SchedulePage() {
                     <div className="h-20 flex items-center justify-center">
                       <p className="text-xs text-masss-heading/30">No tasks scheduled</p>
                     </div>
-                  ) : (
-                    tasks.map((task, i) => (
-                      <motion.div
-                        key={task.task_id}
-                        initial={{ opacity: 0, y: 4 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: i * 0.05 }}
-                        className="p-3 bg-masss-bg rounded-xl border border-masss-mint"
-                      >
-                        <p className="text-sm font-medium text-masss-heading truncate mb-1.5">
-                          {task.task_name}
-                        </p>
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          {task.priority && (
-                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
-                              PRIORITY_COLOURS[task.priority] || 'bg-masss-mint text-masss-accent'
-                            }`}>
-                              {task.priority}
-                            </span>
-                          )}
-                          {task.allocation_type && (
-                            <span className="px-2 py-0.5 rounded-full bg-masss-white border border-masss-mint text-[10px] text-masss-heading/50">
-                              {task.allocation_type.replace(/_/g, ' ')}
-                            </span>
-                          )}
-                        </div>
-                      </motion.div>
-                    ))
-                  )}
+                  ) : tasks.map((scheduledTask) => {
+  const fullTask = allTasks.find(t => t._id === scheduledTask.task_id)
+  if (!fullTask) return null
+  return (
+    <TaskRow
+      key={fullTask._id}
+      task={fullTask}
+      onFocus={(id) => navigate(`/masss/focus/${id}`)}
+      onComplete={(id, payload) => updateTask(id, payload)}
+      onArchive={() => {}}
+      onEdit={() => {}}
+       hideMenu
+    />
+  )
+})}
                 </div>
               </div>
             )
