@@ -34,7 +34,7 @@ export default function SlotsPage() {
         slot_label:    pref.slot_label,
         start_time:    pref.start_time,
         end_time:      pref.end_time,
-        max_pomodoros: Number(pref.max_pomodoros),
+        max_pomodoros: calcMaxPomos(pref.start_time, pref.end_time) ?? pref.max_pomodoros,
         is_preferred:  pref.is_preferred,
       })
       setSaved(slotName)
@@ -43,6 +43,14 @@ export default function SlotsPage() {
       setSaving(null)
     }
   }
+
+  const calcMaxPomos = (start, end) => {
+  if (!start || !end) return null
+  const [sh, sm] = start.split(':').map(Number)
+  const [eh, em] = end.split(':').map(Number)
+  const mins = (eh * 60 + em) - (sh * 60 + sm)
+  return mins > 0 ? Math.floor(mins / 25) : null
+}
 
   if (loading) return <PageLoader />
   if (error)   return <PageError message={error} onRetry={refetch} />
@@ -65,9 +73,9 @@ export default function SlotsPage() {
               <span className="px-2.5 py-0.5 rounded-full bg-masss-mint text-masss-accent text-xs font-semibold capitalize">
                 {slotName}
               </span>
-              <span className="text-xs text-masss-heading/40">
+              {/* <span className="text-xs text-masss-heading/40">
                 Energy: {(pref.inferred_energy_score * 100).toFixed(0)}%
-              </span>
+              </span> */}
             </div>
 
             <div className="space-y-3">
@@ -101,17 +109,26 @@ export default function SlotsPage() {
                   />
                 </div>
               </div>
-              <div>
-                <label className="text-xs text-masss-heading/50 mb-1 block">Max pomodoros per day</label>
-                <input
-                  type="number"
-                  min={1} max={12}
-                  value={pref.max_pomodoros || 4}
-                  onChange={e => update(slotName, 'max_pomodoros', e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg border border-masss-mint text-sm text-masss-heading bg-masss-bg focus:outline-none focus:border-masss-accent"
-                />
-              </div>
-            </div>
+            <div>
+  <div className="flex items-center justify-between mb-1">
+    <label className="text-xs text-masss-heading/50">Max pomodoros for this slot</label>
+    <span className="text-[10px] font-semibold text-masss-accent">
+      Slot max {calcMaxPomos(pref.start_time, pref.end_time) ?? '—'} 🍅
+    </span>
+  </div>
+  <input
+    type="number"
+    min={1}
+    max={calcMaxPomos(pref.start_time, pref.end_time) ?? 12}
+    value={pref.max_pomodoros || 4}
+    onChange={e => {
+      const max = calcMaxPomos(pref.start_time, pref.end_time)
+      const val = Number(e.target.value)
+      update(slotName, 'max_pomodoros', max !== null ? Math.min(val, max) : val)
+    }}
+    className="w-full px-3 py-2 rounded-lg border border-masss-mint text-sm text-masss-heading bg-masss-bg focus:outline-none focus:border-masss-accent"
+  />
+</div>    </div>
 
             <button
               onClick={() => handleSave(slotName)}
