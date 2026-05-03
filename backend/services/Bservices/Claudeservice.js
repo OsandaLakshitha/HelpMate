@@ -246,7 +246,7 @@ export const generateTasks = async ({
       model:       MODEL,
       messages:    [{ role: "user", content: prompt }],
       temperature: 0.4,   // Slightly creative but stays grounded in the brief
-      max_tokens:  3000,  // Enough room for up to 12 detailed tasks
+      max_tokens:  6000,  // Enough room for up to 12 detailed tasks
     });
 
     const raw = completion.choices[0].message.content ?? "";

@@ -39,8 +39,7 @@ export default function BDailyTargets({ projects = [], onGoToProject }) {
         // 2. Project is NOT in cold start (has passed the 4-task unlock)
         // 3. Project has tasks OR has some completion activity
         const shouldShowTarget = 
-          project.dailyTarget > 0 && 
-          !project.coldStart ;
+          project.dailyTarget > 0;
 
         // Calculate progress percentage
         const progressPct = project.dailyTarget > 0 
@@ -81,23 +80,7 @@ export default function BDailyTargets({ projects = [], onGoToProject }) {
             </div>
 
             {/* ✅ CONDITIONAL: Cold Start Message (shown BEFORE target is active) */}
-            {project.coldStart && (
-              <div style={{ 
-                padding: '12px', 
-                background: '#f8fafc', 
-                borderRadius: 10, 
-                textAlign: 'center',
-                marginBottom: 16,
-                border: '1px dashed #cbd5e1'
-              }}>
-                <p style={{ margin: 0, fontSize: 13, color: '#64748b' }}>
-                  🔐 Complete {project.completionsNeeded || 4} tasks to unlock personalized predictions
-                </p>
-                <p style={{ margin: '6px 0 0', fontSize: 11, color: '#94a3b8' }}>
-                  Start with any task — predictions will activate automatically!
-                </p>
-              </div>
-            )}
+            
 
             {/* ✅ CONDITIONAL: Today's Target Progress (only shows when meaningful) */}
             {shouldShowTarget && (
