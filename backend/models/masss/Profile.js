@@ -28,7 +28,7 @@ const slotPreferenceSchema = new mongoose.Schema(
       type:    Number,
       default: 4,
       min:     1,
-      max:     12,
+      max:     48,
     },
     inferredEnergyScore: {
       // Float 0.0 – 1.0 — mirrors inferred_energy_score column

@@ -100,25 +100,32 @@ exports.end = async (req, res) => {
 
     if (task) {
       // ── COMPLETED case ────────────────────────────────────────────────────
-      if (end_type === 'completed') {
-        session.isCompleted = true
-        task.sessionsCount  += 1
+if (end_type === 'completed') {
+  session.isCompleted = true
+  task.sessionsCount  += 1
 
-        // Auto-extend estimated pomodoros if sessions exceed estimate
-        if (task.sessionsCount > task.estimatedPomodoros) {
-          task.estimatedPomodoros = task.sessionsCount
-        }
-      }
+  // Auto-extend estimated pomodoros if sessions exceed estimate
+  if (task.sessionsCount > task.estimatedPomodoros) {
+    task.estimatedPomodoros = task.sessionsCount
+  }
+
+  // If all sessions done → mark task completed, else reset to pending
+  if (task.sessionsCount >= task.estimatedPomodoros) {
+    task.status = 'completed'
+  } else {
+    task.status = 'pending'
+  }
+}
 
       // ── ABORTED case ──────────────────────────────────────────────────────
       // If discarded with zero sessions, reset task to pending
       else if (end_type === 'aborted') {
-        if (task.sessionsCount === 0) {
-          task.status = 'pending'
-        }
-      }
-
+  task.status = 'pending'
+}
       // STOPPED — task stays in_progress automatically
+      else if (end_type === 'stopped') {
+  task.status = 'pending'
+}
 
       await task.save()
     }
@@ -138,11 +145,11 @@ exports.getRecent = async (req, res) => {
     const skip  = parseInt(req.query.skip,  10) || 0
     const limit = parseInt(req.query.limit, 10) || 20
 
-    const sessions = await MasssSession.find({ userId: req.user.id })
-      .sort({ startTime: -1 })
-      .skip(skip)
-      .limit(limit)
-      .lean()
+  const sessions = await MasssSession.find({ userId: req.user.id })
+  .sort({ startTime: -1 })
+  .skip(skip)
+  .limit(limit)
+  .populate('taskId', 'name estimatedPomodoros')
 
     res.json({ success: true, data: sessions })
   } catch (error) {

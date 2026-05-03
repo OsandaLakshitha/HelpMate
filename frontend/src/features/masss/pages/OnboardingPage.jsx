@@ -54,7 +54,8 @@ export default function OnboardingPage() {
         slot_label:    s.slot_label,
         start_time:    s.start_time,
         end_time:      s.end_time,
-        max_pomodoros: s.max_pomodoros,
+        max_pomodoros: calcMaxPomos(slot.start_time, slot.end_time) ?? slot.max_pomodoros,
+
       })))
     } catch {
       setError('Failed to load slot defaults.')
@@ -122,6 +123,14 @@ export default function OnboardingPage() {
     return false
   }
 
+ const calcMaxPomos = (start, end) => {
+  if (!start || !end) return null
+  const [sh, sm] = start.split(':').map(Number)
+  const [eh, em] = end.split(':').map(Number)
+  const mins = (eh * 60 + em) - (sh * 60 + sm)
+  return mins > 0 ? Math.floor(mins / 25) : null
+}
+
   return (
     <div className="min-h-screen bg-masss-bg flex items-center justify-center px-4 py-10">
       <div className="w-full max-w-2xl">
@@ -175,9 +184,9 @@ export default function OnboardingPage() {
                 transition={{ duration: 0.2 }}
               >
                 <h2 className="text-lg font-bold text-masss-heading mb-1">What is your study chronotype?</h2>
-                <p className="text-sm text-masss-heading/50 mb-6">
-                  This sets your initial energy levels for each time slot.
-                </p>
+                <p className="text-[10px] text-masss-heading/40 mt-1">
+  Max study sessions in this slot only
+</p>
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   {CHRONOTYPES.map(c => (
@@ -366,17 +375,12 @@ export default function OnboardingPage() {
                             className="w-full px-3 py-2 text-sm rounded-lg border border-masss-mint bg-masss-white text-masss-heading focus:outline-none focus:border-masss-accent"
                           />
                         </div>
-                        <div className="w-24">
-                          <label className="text-xs text-masss-heading/50 mb-1 block">Max pomos</label>
-                          <input
-                            type="number"
-                            min={1}
-                            max={12}
-                            value={slot.max_pomodoros}
-                            onChange={e => updateSlot(idx, 'max_pomodoros', Number(e.target.value))}
-                            className="w-full px-3 py-2 text-sm rounded-lg border border-masss-mint bg-masss-white text-masss-heading focus:outline-none focus:border-masss-accent"
-                          />
-                        </div>
+           <div className="w-24 flex flex-col justify-end">
+  <label className="text-xs text-masss-heading/50 mb-1 block">Max pomos</label>
+  <div className="px-3 py-2 text-sm rounded-lg border border-masss-mint bg-masss-bg text-masss-accent font-semibold text-center">
+    {calcMaxPomos(slot.start_time, slot.end_time) ?? '—'} 🍅
+  </div>
+</div>
                       </div>
                     </div>
                   ))}

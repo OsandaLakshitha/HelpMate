@@ -144,18 +144,62 @@ const buildRequestBody = async (userId, activeSlot = 'morning', includeTasks = t
   return body
 }
 
+
+
+// ── Past-slot zeroing ─────────────────────────────────────────────────────────
+const getPastSlotCapacities = (slotPreferences, activeSlot) => {
+  const nowHour = new Date().getHours() + new Date().getMinutes() / 60
+  const zeroed = {}
+  for (const pref of slotPreferences) {
+if (pref.slot_name === activeSlot && pref.start_hour <= nowHour) continue
+    if (pref.end_hour < nowHour - 0.5) {
+      zeroed[pref.slot_name] = true
+    }
+  }
+  return zeroed
+}
+
+// ── Sticky rule with capacity cap ─────────────────────────────────────────────
+const applyCapacityLimits = (schedule, slotPreferences, pastSlots) => {
+  const capacityMap = {}
+  for (const pref of slotPreferences) {
+    capacityMap[pref.slot_name] = pastSlots[pref.slot_name] ? 0 : pref.max_pomodoros
+  }
+
+  const result = { morning: [], afternoon: [], evening: [] }
+  for (const slot of ['morning', 'afternoon', 'evening']) {
+    const tasks = schedule[slot] ?? []
+    let used = 0
+    for (const task of tasks) {
+      if (used >= capacityMap[slot]) break
+      result[slot].push(task)
+      used++
+    }
+  }
+  return result
+}
+
 // ── Public functions ──────────────────────────────────────────────────────────
 
 const getRLSchedule = async (userId, activeSlot = 'morning') => {
   const body = await buildRequestBody(userId, activeSlot, true)
 
   try {
-    const response = await axios.post(
-      `${RL_BASE_URL}/schedule`,
-      body,
-      { headers: RL_HEADERS, timeout: RL_TIMEOUT },
-    )
-    return response.data
+const response = await axios.post(
+  `${RL_BASE_URL}/schedule`,
+  body,
+  { headers: RL_HEADERS, timeout: RL_TIMEOUT },
+)
+
+const pastSlots = getPastSlotCapacities(body.slot_preferences, activeSlot)
+const cleaned   = applyCapacityLimits(response.data, body.slot_preferences, pastSlots)
+
+return {
+  ...response.data,
+  morning:   cleaned.morning,
+  afternoon: cleaned.afternoon,
+  evening:   cleaned.evening,
+}
   } catch (err) {
     const reason = err.code === 'ECONNREFUSED'
       ? 'RL service unavailable'

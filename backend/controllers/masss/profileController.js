@@ -26,6 +26,7 @@ exports.getPreferences = async (req, res) => {
   }
 }
 
+
 // ── POST /profile/preferences ─────────────────────────────────────────────────
 // Upserts a single slot preference — mirrors set_slot_preference()
 exports.setPreference = async (req, res) => {
