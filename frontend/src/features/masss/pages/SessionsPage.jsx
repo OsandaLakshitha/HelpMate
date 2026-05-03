@@ -1,30 +1,36 @@
 // frontend/src/features/masss/pages/SessionsPage.jsx
 
-import React from 'react'
-import { motion } from 'framer-motion'
-import { Clock, Star } from 'lucide-react'
-import { PageWrapper, PageHeader, PageLoader, PageError, EmptyState } from '../components/layout/PageWrapper'
-import { useSessions } from '../hooks/useSessions'
-import { formatDuration, formatDate, ratingColour } from '../utils/formatters'
+import React from "react";
+import { motion } from "framer-motion";
+import { Clock, Star } from "lucide-react";
+import {
+  PageWrapper,
+  PageHeader,
+  PageLoader,
+  PageError,
+  EmptyState,
+} from "../components/layout/PageWrapper";
+import { useSessions } from "../hooks/useSessions";
+import { formatDuration, formatDate } from "../utils/formatters";
 
 const END_TYPE_BADGE = {
-  completed: 'bg-masss-mint text-masss-accent',
-  stopped:   'bg-amber-100 text-amber-600',
-  aborted:   'bg-red-100 text-red-400',
-  skipped:   'bg-masss-bg text-masss-heading/50',
-}
+  completed: "bg-masss-mint text-masss-accent",
+  stopped: "bg-amber-100 text-amber-600",
+  aborted: "bg-red-100 text-red-400",
+  skipped: "bg-masss-bg text-masss-heading/50",
+};
 
 export default function SessionsPage() {
-  const { sessions, loading, error, refetch } = useSessions()
+  const { sessions, loading, error, refetch } = useSessions();
 
-  if (loading) return <PageLoader />
-  if (error)   return <PageError message={error} onRetry={refetch} />
+  if (loading) return <PageLoader />;
+  if (error) return <PageError message={error} onRetry={refetch} />;
 
   return (
     <PageWrapper>
       <PageHeader
-        // title="Sessions"
-        // subtitle="Your study history"
+      // title="Sessions"
+      // subtitle="Your study history"
       />
 
       {sessions.length === 0 ? (
@@ -51,22 +57,24 @@ export default function SessionsPage() {
               {/* Info */}
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1">
-                <p className="text-sm font-medium text-masss-heading truncate">
-  {session.taskId?.name || 'Session'}
-</p>
-<span className="text-[10px] text-masss-heading/40 shrink-0">
-  Session {sessions
-    .slice(0, i + 1)
-    .filter(s => s.taskId?._id === session.taskId?._id).length}
-  {session.taskId?.estimatedPomodoros
-    ? ` of ${session.taskId.estimatedPomodoros}`
-    : ''}
-</span>
-                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold shrink-0 ${
-                    END_TYPE_BADGE[session.endType] || ''
-                  }`}>
-                    {session.endType}
+                  <p className="text-sm font-medium text-masss-heading truncate">
+                    {session.taskId?.name || "Session"}
+                  </p>
+                  <span className="text-[10px] text-masss-heading/40 shrink-0">
+                    Session{" "}
+                    {
+                      sessions
+                        .slice(0, i + 1)
+                        .filter((s) => s.taskId?._id === session.taskId?._id)
+                        .length
+                    }
+                    {session.taskId?.estimatedPomodoros
+                      ? ` of ${session.taskId.estimatedPomodoros}`
+                      : ""}
                   </span>
+                 <span className="text-[10px] text-masss-heading/40 shrink-0">
+  {session.endType}
+</span>
                 </div>
                 <div className="flex items-center gap-3 text-xs text-masss-heading/50">
                   <span className="capitalize">{session.slotType} slot</span>
@@ -76,25 +84,21 @@ export default function SessionsPage() {
               </div>
 
               {/* Rating */}
-              {session.focusRating && (
-                <div className="flex items-center gap-1 shrink-0">
-                  <Star
-                    size={14}
-                    className="fill-current"
-                    style={{ color: ratingColour(session.focusRating) }}
-                  />
-                  <span
-                    className="text-sm font-semibold"
-                    style={{ color: ratingColour(session.focusRating) }}
-                  >
-                    {session.focusRating}
-                  </span>
-                </div>
-              )}
+           {session.focusRating && (
+  <div className="flex items-center gap-0.5 shrink-0">
+    {Array.from({ length: 5 }).map((_, idx) => (
+      <Star
+        key={idx}
+        size={11}
+        className={idx < session.focusRating ? 'fill-masss-accent text-masss-accent' : 'fill-masss-mint text-masss-mint'}
+      />
+    ))}
+  </div>
+)}
             </motion.div>
           ))}
         </div>
       )}
     </PageWrapper>
-  )
+  );
 }

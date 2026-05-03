@@ -138,11 +138,11 @@ exports.getRecent = async (req, res) => {
     const skip  = parseInt(req.query.skip,  10) || 0
     const limit = parseInt(req.query.limit, 10) || 20
 
-    const sessions = await MasssSession.find({ userId: req.user.id })
-      .sort({ startTime: -1 })
-      .skip(skip)
-      .limit(limit)
-      .lean()
+  const sessions = await MasssSession.find({ userId: req.user.id })
+  .sort({ startTime: -1 })
+  .skip(skip)
+  .limit(limit)
+  .populate('taskId', 'name estimatedPomodoros')
 
     res.json({ success: true, data: sessions })
   } catch (error) {

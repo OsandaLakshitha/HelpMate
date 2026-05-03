@@ -32,7 +32,7 @@ export default function AIRecommendations({ rlSchedule, rlLoading, allTasks, ene
       <SectionHeader
         number="2"
         title="Why the AI recommended this"
-        subtitle="One reason per task — based on urgency, momentum, and your slot energy"
+        subtitle="One reason per task based on urgency, momentum, or slot energy"
       />
 
       <motion.div
@@ -104,10 +104,7 @@ export default function AIRecommendations({ rlSchedule, rlLoading, allTasks, ene
         )}
 
         <Collapse label="How does the AI rank tasks?">
-          The AI weighs urgency (deadlines coming up), momentum (tasks already started), slot energy
-          (placing hard tasks in your best time windows), and priority. Tasks in progress are pinned first
-          to preserve your flow. Everything else is sorted by how soon it's due and how well your current
-          state matches the task's difficulty.
+The AI prioritizes urgency (deadlines), momentum (ongoing work), energy (best time slots), and priority. In-progress tasks are kept first to maintain flow, while the rest are ordered by due time and task fit
         </Collapse>
       </motion.div>
     </section>
