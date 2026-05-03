@@ -51,9 +51,17 @@ export default function SessionsPage() {
               {/* Info */}
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1">
-                  <p className="text-sm font-medium text-masss-heading truncate">
-                    {session.taskId?.name || 'Session'}
-                  </p>
+                <p className="text-sm font-medium text-masss-heading truncate">
+  {session.taskId?.name || 'Session'}
+</p>
+<span className="text-[10px] text-masss-heading/40 shrink-0">
+  Session {sessions
+    .slice(0, i + 1)
+    .filter(s => s.taskId?._id === session.taskId?._id).length}
+  {session.taskId?.estimatedPomodoros
+    ? ` of ${session.taskId.estimatedPomodoros}`
+    : ''}
+</span>
                   <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold shrink-0 ${
                     END_TYPE_BADGE[session.endType] || ''
                   }`}>
