@@ -241,6 +241,23 @@ const ProjectView = () => {
   const [closeOpen,  setCloseOpen]  = useState(false);
   const [statsOpen,  setStatsOpen]  = useState(false);
 
+  const refreshPrediction = async () => {
+  try {
+    const res = await axios.post(
+      `${API_URL}/api/prediction/${id}/refresh`,
+      {},
+      {
+        headers: { Authorization: `Bearer ${token}` },
+      }
+    );
+
+    const prediction = res.data.prediction;
+    setPredictions(prediction ? [prediction] : []);
+  } catch (err) {
+    console.error('Failed to refresh prediction');
+  }
+};
+
   const [editForm, setEditForm] = useState({
     title: '', description: '', projectType: '', complexity: '', dueDate: null,
   });
@@ -446,24 +463,27 @@ const ProjectView = () => {
             Generate Your Tasks
           </Button>
           <Button
-            onClick={() => setStatsOpen(true)}
-            startIcon={<BarChartIcon />}
-            size="small"
-            variant="contained"
-            sx={{
-              bgcolor: '#13a2a2',
-              color: '#fff',
-              fontWeight: 600,
-              fontSize: 13,
-              borderRadius: 2,
-              px: 2,
-              textTransform: 'none',
-              boxShadow: '0 2px 10px rgba(19,162,162,0.25)',
-              '&:hover': { bgcolor: '#035757', boxShadow: '0 4px 16px rgba(19,162,162,0.35)' },
-            }}
-          >
-            View Statistics
-          </Button>
+  onClick={async () => {
+    await refreshPrediction();   // 🔥 forces recalculation
+    setStatsOpen(true);
+  }}
+  startIcon={<BarChartIcon />}
+  size="small"
+  variant="contained"
+  sx={{
+    bgcolor: '#13a2a2',
+    color: '#fff',
+    fontWeight: 600,
+    fontSize: 13,
+    borderRadius: 2,
+    px: 2,
+    textTransform: 'none',
+    boxShadow: '0 2px 10px rgba(19,162,162,0.25)',
+    '&:hover': { bgcolor: '#035757', boxShadow: '0 4px 16px rgba(19,162,162,0.35)' },
+  }}
+>
+  View Statistics
+</Button>
         </Box>
 
         {/* ── Alerts ── */}
@@ -683,6 +703,8 @@ const ProjectView = () => {
                       <PredictionBadge 
                         status={prediction?.status || 'not-started'} 
                         rapStatus={prediction?.rapStatus} 
+                        tasksCompleted={prediction?.completedTaskCount || 0}
+                        totalTasks={prediction?.totalTaskCount || 0}
                       />
                     </Box>
                   </Box>

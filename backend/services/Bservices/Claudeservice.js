@@ -132,6 +132,13 @@ ${targetTaskCount} academic tasks that together cover the full scope of that
 component. The tasks should guide the student from initial research through
 to a submission-ready deliverable.
 
+TASK GENERATION RULES:
+1. Generate between 8 and 19 tasks covering ONLY this student's individual component
+2. Base tasks directly on the PDF content and assignment requirements
+3. Each task must be specific and actionable — student knows exactly what to do
+4. YouTube queries must be real specific search terms a student would actually search
+5. Steps must be detailed enough to follow without further instruction
+
 TASK ORDERING RULES (follow this sequence)
 1. Background research and literature review
 2. Planning, outlining, or system/experiment design  
