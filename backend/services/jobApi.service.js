@@ -1,51 +1,5 @@
 const axios = require("axios");
 
-// Calculate relevance score for a job based on user skills
-function calculateJobRelevance(job, userSkills) {
-  const skillsLower = userSkills.map((s) => s.toLowerCase().trim());
-  const title = (job.position || job.title || "").toLowerCase();
-  const description = (job.description || "").toLowerCase();
-  const tags = (job.tags || []).map((t) => t.toLowerCase());
-  const category = (job.category || "").toLowerCase();
-
-  let score = 0;
-  let matchedSkills = 0;
-
-  skillsLower.forEach((skill) => {
-    // Exact word boundary match is more accurate
-    const skillRegex = new RegExp(
-      `\\b${skill.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`,
-      "i",
-    );
-
-    // Title match - highest weight (5 points)
-    if (skillRegex.test(title)) {
-      score += 5;
-      matchedSkills++;
-    }
-
-    // Tags match - high weight (3 points)
-    if (tags.some((tag) => skillRegex.test(tag))) {
-      score += 3;
-      matchedSkills++;
-    }
-
-    // Category match - medium weight (2 points)
-    if (skillRegex.test(category)) {
-      score += 2;
-      matchedSkills++;
-    }
-
-    // Description match - lower weight (1 point)
-    if (skillRegex.test(description)) {
-      score += 1;
-      matchedSkills++;
-    }
-  });
-
-  return { score, matchedSkills };
-}
-
 // Fetch jobs from RemoteOK API
 async function fetchRemoteOKJobs(skills) {
   try {
@@ -54,24 +8,18 @@ async function fetchRemoteOKJobs(skills) {
       timeout: 10000,
     });
 
-    const jobs = response.data.slice(1, 150); // Get more jobs for better filtering
+    const jobs = response.data.slice(1, 100); // Get more jobs for better filtering
+    const skillsLower = skills.map((s) => s.toLowerCase().trim());
 
-    // Calculate relevance score for each job
-    const jobsWithScores = jobs.map((job) => {
-      const { score, matchedSkills } = calculateJobRelevance(job, skills);
-      return { job, score, matchedSkills };
-    });
-
-    // Filter: require at least 2 points OR 2 matched skills for relevance
-    const relevantJobs = jobsWithScores
-      .filter((item) => item.score >= 2 || item.matchedSkills >= 2)
-      .sort((a, b) => {
-        // Sort by score first, then by matched skills
-        if (b.score !== a.score) return b.score - a.score;
-        return b.matchedSkills - a.matchedSkills;
+    // Filter jobs that match at least one user skill
+    const relevantJobs = jobs
+      .filter((job) => {
+        const jobText = `${job.position} ${job.description} ${(
+          job.tags || []
+        ).join(" ")}`.toLowerCase();
+        return skillsLower.some((skill) => jobText.includes(skill));
       })
-      .slice(0, 30) // Take top 30 most relevant jobs
-      .map((item) => item.job);
+      .slice(0, 40); // Take top 40 relevant jobs
 
     return relevantJobs.map((job) => ({
       jobId: job.id || String(Math.random()),
@@ -100,28 +48,21 @@ async function fetchRemoteOKJobs(skills) {
 async function fetchRemotiveJobs(skills) {
   try {
     const response = await axios.get("https://remotive.com/api/remote-jobs", {
-      params: { limit: 150 },
+      params: { limit: 100 },
       timeout: 10000,
     });
 
     const jobs = response.data.jobs || [];
+    const skillsLower = skills.map((s) => s.toLowerCase().trim());
 
-    // Calculate relevance score for each job
-    const jobsWithScores = jobs.map((job) => {
-      const { score, matchedSkills } = calculateJobRelevance(job, skills);
-      return { job, score, matchedSkills };
-    });
-
-    // Filter: require at least 2 points OR 2 matched skills for relevance
-    const relevantJobs = jobsWithScores
-      .filter((item) => item.score >= 2 || item.matchedSkills >= 2)
-      .sort((a, b) => {
-        // Sort by score first, then by matched skills
-        if (b.score !== a.score) return b.score - a.score;
-        return b.matchedSkills - a.matchedSkills;
+    // Filter jobs that match at least one user skill
+    const relevantJobs = jobs
+      .filter((job) => {
+        const jobText =
+          `${job.title} ${job.description} ${job.category}`.toLowerCase();
+        return skillsLower.some((skill) => jobText.includes(skill));
       })
-      .slice(0, 30) // Take top 30 most relevant jobs
-      .map((item) => item.job);
+      .slice(0, 40); // Take top 40 relevant jobs
 
     return relevantJobs.map((job) => ({
       jobId: String(job.id),
@@ -336,7 +277,7 @@ function getFallbackJobs(skills = []) {
   if (skillsLower.length > 0) {
     const relevantJobs = allFallbackJobs.filter((job) => {
       const jobText = `${job.title} ${job.description} ${job.tags.join(
-        " ",
+        " "
       )}`.toLowerCase();
       return skillsLower.some((skill) => jobText.includes(skill));
     });
@@ -348,120 +289,25 @@ function getFallbackJobs(skills = []) {
   return allFallbackJobs.slice(0, 5);
 }
 
-// Fetch jobs from Arbeitnow API (No API key required)
-async function fetchArbeitnowJobs(skills) {
-  try {
-    const response = await axios.get(
-      "https://www.arbeitnow.com/api/job-board-api",
-      {
-        timeout: 10000,
-      },
-    );
-
-    const jobs = response.data.data || [];
-
-    // Calculate relevance score for each job
-    const jobsWithScores = jobs.map((job) => {
-      const { score, matchedSkills } = calculateJobRelevance(job, skills);
-      return { job, score, matchedSkills };
-    });
-
-    // Filter: require at least 2 points OR 2 matched skills for relevance
-    const relevantJobs = jobsWithScores
-      .filter((item) => item.score >= 2 || item.matchedSkills >= 2)
-      .sort((a, b) => {
-        if (b.score !== a.score) return b.score - a.score;
-        return b.matchedSkills - a.matchedSkills;
-      })
-      .slice(0, 30)
-      .map((item) => item.job);
-
-    return relevantJobs.map((job) => ({
-      jobId: job.slug || String(Math.random()),
-      title: job.title || "Position Available",
-      company: job.company_name || "Company",
-      location: job.location || "Remote",
-      description: job.description || "No description available",
-      salary: { min: null, max: null, currency: "EUR" },
-      tags: job.tags || [],
-      url: job.url || "#",
-      source: "Arbeitnow",
-      postedDate: job.created_at ? new Date(job.created_at) : new Date(),
-    }));
-  } catch (error) {
-    console.error("Arbeitnow API Error:", error.message);
-    return [];
-  }
-}
-
-// Fetch jobs from The Muse API (No API key required)
-async function fetchTheMuseJobs(skills) {
-  try {
-    const response = await axios.get(
-      "https://www.themuse.com/api/public/jobs",
-      {
-        params: { page: 0, descending: true },
-        timeout: 10000,
-      },
-    );
-
-    const jobs = response.data.results || [];
-
-    // Calculate relevance score for each job
-    const jobsWithScores = jobs.map((job) => {
-      const { score, matchedSkills } = calculateJobRelevance(job, skills);
-      return { job, score, matchedSkills };
-    });
-
-    // Filter: require at least 2 points OR 2 matched skills for relevance
-    const relevantJobs = jobsWithScores
-      .filter((item) => item.score >= 2 || item.matchedSkills >= 2)
-      .sort((a, b) => {
-        if (b.score !== a.score) return b.score - a.score;
-        return b.matchedSkills - a.matchedSkills;
-      })
-      .slice(0, 30)
-      .map((item) => item.job);
-
-    return relevantJobs.map((job) => ({
-      jobId: String(job.id),
-      title: job.name || "Position Available",
-      company: job.company?.name || "Company",
-      location: job.locations?.map((loc) => loc.name).join(", ") || "Remote",
-      description: job.contents || "No description available",
-      salary: { min: null, max: null, currency: "USD" },
-      tags: job.categories?.map((cat) => cat.name) || [],
-      url: job.refs?.landing_page || "#",
-      source: "TheMuse",
-      postedDate: job.publication_date
-        ? new Date(job.publication_date)
-        : new Date(),
-    }));
-  } catch (error) {
-    console.error("The Muse API Error:", error.message);
-    return [];
-  }
-}
-
 // Fetch all jobs from multiple sources
 async function fetchAllJobs(skills) {
   let allJobs = [];
 
   // Try RemoteOK
-  const remoteOKJobs = await fetchRemoteOKJobs(skills);
-  allJobs.push(...remoteOKJobs);
+  try {
+    const remoteOKJobs = await fetchRemoteOKJobs(skills);
+    allJobs.push(...remoteOKJobs);
+  } catch (error) {
+    console.log("RemoteOK failed");
+  }
 
   // Try Remotive
-  const remotiveJobs = await fetchRemotiveJobs(skills);
-  allJobs.push(...remotiveJobs);
-
-  // Try Arbeitnow (No API key needed - Tech jobs in Europe)
-  const arbeitnowJobs = await fetchArbeitnowJobs(skills);
-  allJobs.push(...arbeitnowJobs);
-
-  // Try The Muse (No API key needed - Quality listings)
-  const theMuseJobs = await fetchTheMuseJobs(skills);
-  allJobs.push(...theMuseJobs);
+  try {
+    const remotiveJobs = await fetchRemotiveJobs(skills);
+    allJobs.push(...remotiveJobs);
+  } catch (error) {
+    console.log("Remotive failed");
+  }
 
   // Use fallback if no jobs found
   if (allJobs.length === 0) {
@@ -474,8 +320,6 @@ async function fetchAllJobs(skills) {
 module.exports = {
   fetchRemoteOKJobs,
   fetchRemotiveJobs,
-  fetchArbeitnowJobs,
-  fetchTheMuseJobs,
   getFallbackJobs,
   fetchAllJobs,
 };

@@ -1,0 +1,68 @@
+/* CreateTask.css */
+.create-task-container {
+  background-color: #f8fafc;
+  min-height: 100vh;
+  padding: 40px 20px;
+}
+
+.form-card {
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1) !important;
+  border-radius: 20px !important;
+}
+
+.form-label {
+  font-size: 0.8rem !important;
+  font-weight: 700 !important;
+  color: #475569 !important;
+  margin-bottom: 8px !important;
+  display: block;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Input Fields */
+.MuiOutlinedInput-root {
+  border-radius: 12px !important;
+  background-color: #fcfcfd !important;
+  transition: all 0.2s ease !important;
+}
+
+.MuiOutlinedInput-root:hover {
+  background-color: #ffffff !important;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04) !important;
+}
+
+.MuiOutlinedInput-notchedOutline {
+  border-color: #cbd5e1 !important;
+}
+
+/* Custom Buttons */
+.btn-submit {
+  background: #4f46e5 !important;
+  border-radius: 10px !important;
+  padding: 12px 30px !important;
+  font-weight: 700 !important;
+  text-transform: none !important;
+  box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.4) !important;
+}
+
+.btn-submit:hover {
+  background: #4338ca !important;
+  box-shadow: 0 10px 15px -3px rgba(79, 70, 229, 0.5) !important;
+}
+
+.btn-cancel {
+  color: #64748b !important;
+  text-transform: none !important;
+  font-weight: 600 !important;
+}
+
+.creator-info-box {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 15px 0 0 0;
+  border-top: 1px solid #f1f5f9;
+}

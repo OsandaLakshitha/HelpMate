@@ -24,11 +24,7 @@ import {
   AlertCircle,
 } from 'lucide-react';
 
-
-
 const AdminDashboard = () => {
-
-
   const { token } = useAuth();
   const [stats, setStats] = useState(null);
   const [users, setUsers] = useState([]);

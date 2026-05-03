@@ -14,7 +14,6 @@ import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import AdminLayout from "./components/admin/AdminLayout";
 import UserLayout from "./components/user/UserLayout";
-import UserNavbar from "./components/user/UserNavbar";
 
 // Public Pages
 import Home from "./pages/Home";
@@ -44,55 +43,23 @@ import PeerMatching from "./pages/user/PeerMatching";
 import NotesUpload from "./pages/user/NotesUpload";
 import MyNotes from "./pages/user/MyNotes";
 import NoteDetail from "./pages/user/NoteDetail";
-import StudyDashboard from "./pages/user/StudyDashboard";
-import ExamPrepPage from './pages/user/ExamPrepPage';
+import CreateProject from "./pages/Bpages/Bproject/createproject";
+import Bprojectlist from "./pages/Bpages/Bproject/Bprojectlist";
+import CreateTask from "./pages/Bpages/Btasks/Baddtask";
+import TaskBoard from "./pages/Bpages/Btasks/Btaskboard";
+import TaskDetails from "./pages/Bpages/Btasks/Bviewtask";
+import ProjectView from "./pages/Bpages/Bproject/Bprojectview";
+import Dashboard from "./pages/Bpages/Bdashboard/Bdashboard";
+import ProjectTaskBoard from "./pages/Bpages/Btasks/Bprojecttaskboard";
+import InsightPage from "./pages/Bpages/Binsight/Binsight";
+import Bonboarding      from './pages/Bpages/Bonboarding';
+import OnboardingGuard  from './components/Bcomponents/OnboardingGuard';
+import BgenerateTask from './pages/Bpages/Btasks/BgenerateTask';
+import CreateAssignment from './pages/Bpages/Bproject/individualproject';
+import BProjectStats from './pages/Bpages/Bproject/Bprojectstats';
 
 // 404 Page
 import NotFound from "./pages/NotFound";
-
-
-// ──  MASSS imports ────────────────────────────────────────────────────
-import { MasssLayout }         from "./features/masss/components/layout/MasssLayout";
-import MasssProtectedRoute     from "./features/masss/components/MasssProtectedRoute";
-import { MasssProvider }       from "./features/masss/context/MasssContext";
-
-// Lazy load MASSS pages for performance
-import { lazy, Suspense } from "react";
-
-const MasssOnboarding   = lazy(() => import("./features/masss/pages/OnboardingPage"));
-const MasssDashboard    = lazy(() => import("./features/masss/pages/DashboardPage"));
-const MasssSchedule     = lazy(() => import("./features/masss/pages/SchedulePage"));
-const MasssModules      = lazy(() => import("./features/masss/pages/ModulesPage"));
-const MasssModuleDetail = lazy(() => import("./features/masss/pages/ModuleDetailPage"));
-const MasssTasksPage    = lazy(() => import("./features/masss/pages/TasksPage"));
-const MassFocusPage     = lazy(() => import("./features/masss/pages/FocusPage"));
-const MasssSessionsPage = lazy(() => import("./features/masss/pages/SessionsPage"));
-const MasssInsights     = lazy(() => import("./features/masss/pages/InsightsPage"));
-const MasssSettings     = lazy(() => import("./features/masss/pages/SettingsLayout"));
-const MasssProfile      = lazy(() => import("./features/masss/pages/ProfilePage"));
-const MasssSlots        = lazy(() => import("./features/masss/pages/SlotsPage"));
-const MasssRoutine      = lazy(() => import("./features/masss/pages/RoutinePage"));
-
-// MASSS loading fallback — dark theme matches MASSS layout
-const MasssLoader = () => (
-  <div
-    className="flex items-center justify-center h-screen"
-    style={{ background: '#F0FAF9' }}
-  >
-    <div
-      className="w-7 h-7 rounded-full border-2 masss-spin"
-      style={{ borderColor: '#C7F0EB', borderTopColor: '#0FA89E' }}
-    />
-  </div>
-)
-
-// Wrap a lazy component with Suspense
-const Lazy = ({ component: Component }) => (
-  <Suspense fallback={<MasssLoader />}>
-    <Component />
-  </Suspense>
-)
-
 
 function App() {
   return (
@@ -139,75 +106,34 @@ function App() {
             }
           >
             <Route index element={<Navigate to="/user/dashboard" replace />} />
-            <Route path="dashboard" element={<StudyDashboard />} />
+            <Route path="dashboard" element={<UserDashboard />} />
+            <Route path="study" element={<UserStudy />} />
             <Route path="career" element={<UserCareer />} />
             <Route path="wellness" element={<UserWellness />} />
             <Route path="files" element={<UserFiles />} />
             <Route path="profile" element={<UserProfile />} />
             <Route path="settings" element={<UserSettings />} />
-            <Route path="job-recommendation" element={<JobRecomendation />} />
+            <Route path="jobs" element={<JobRecomendation />} />
             <Route path="peer-matching" element={<PeerMatching />} />
             <Route path="/user/notes/upload" element={<NotesUpload />} />
             <Route path="/user/notes/list" element={<MyNotes />} />
             <Route path="notes/:id" element={<NoteDetail />} />
-            <Route path="/user/exam-prep/:examId" element={<ExamPrepPage />} />
+            <Route path="createproject" element={<CreateProject />} />
+                       <Route path="/user/projects" element={
+  <OnboardingGuard><Bprojectlist /></OnboardingGuard>
+} />
+                        <Route path="taskboard/:id?" element={<TaskBoard />} />
+                        <Route path="addtask" element={<CreateTask />} />                        
+                        <Route path="task/:id" element={<TaskDetails />} />
+                        <Route path="projects/:id" element={<ProjectView />} />
+                        <Route path="projects/:projectId/tasks" element={<ProjectTaskBoard />} />
+                        <Route path="workspace" element={<Dashboard />} /> 
+                        
+                        <Route path="/user/onboarding" element={<Bonboarding />} />
+                        <Route path="generate-tasks/:id" element={<BgenerateTask />} />
+                        <Route path="/user/CreateAssignment" element={<CreateAssignment />} />
+                       <Route path="/user/projects/:projectId/stats" element={<BProjectStats />} />
           </Route>
-
-                 {/* ── MASSS Routes ───────────────────────────────────────── */}
-          {/*
-            Structure:
-              ProtectedRoute      ← Helpmate auth (user must be logged in)
-                MasssProtectedRoute ← MASSS onboarding check
-                  MasssLayout       ← MASSS dark shell + MasssProvider
-                    child pages...
-          */}
-
-          {/* Onboarding — outside MasssLayout (no sidebar) */}
-          <Route
-            path="/masss/onboarding"
-            element={
-              <ProtectedRoute>
-                <MasssProvider>
-                  <MasssProtectedRoute>
-                    <Lazy component={MasssOnboarding} />
-                  </MasssProtectedRoute>
-                </MasssProvider>
-              </ProtectedRoute>
-            }
-          />
-
-          {/* All MASSS app pages — inside MasssLayout */}
-          {/* MasssLayout already wraps with MasssProvider internally */}
-          <Route
-            path="/masss"
-            element={
-              <ProtectedRoute>
-                <MasssProtectedRoute>
-                  <MasssLayout />
-                </MasssProtectedRoute>
-              </ProtectedRoute>
-            }
-          >
-            <Route index element={<Navigate to="/masss/dashboard" replace />} />
-            <Route path="dashboard"      element={<Lazy component={MasssDashboard} />} />
-            <Route path="schedule"       element={<Lazy component={MasssSchedule} />} />
-            <Route path="modules"        element={<Lazy component={MasssModules} />} />
-            <Route path="modules/:id"    element={<Lazy component={MasssModuleDetail} />} />
-            <Route path="tasks"          element={<Lazy component={MasssTasksPage} />} />
-            <Route path="focus"          element={<Lazy component={MassFocusPage} />} />
-            <Route path="focus/:taskId"  element={<Lazy component={MassFocusPage} />} />
-            <Route path="sessions"       element={<Lazy component={MasssSessionsPage} />} />
-            <Route path="ai-insights"    element={<Lazy component={MasssInsights} />} />
-
-            {/* Settings — nested */}
-            <Route path="settings" element={<Lazy component={MasssSettings} />}>
-              <Route index element={<Navigate to="profile" replace />} />
-              <Route path="profile" element={<Lazy component={MasssProfile} />} />
-              <Route path="slots"   element={<Lazy component={MasssSlots} />} />
-              <Route path="routine" element={<Lazy component={MasssRoutine} />} />
-            </Route>
-          </Route>
-
 
           {/* 404 Route */}
           <Route path="*" element={<NotFound />} />
@@ -232,5 +158,6 @@ const PublicLayout = () => {
 
 // Import Outlet for layouts
 import { Outlet } from "react-router-dom";
+import UserNavbar from "./components/user/UserNavbar";
 
 export default App;

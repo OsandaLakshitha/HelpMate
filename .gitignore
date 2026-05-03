@@ -27,19 +27,8 @@ dist-ssr
 # Ignore AI model files
 ai_server/final_mcq_model/
 ai_server/final_mcq_model/**
-
-ai_server/flashcard_model/
-ai_server/flashcard_model/**
-
-ai_server/summarizer_model
-ai_server/summarizer_model/**
-
 *.safetensors
 *.pt
 *.bin
 *.h5
 *.pkl
-
-backend/uploads/**
-
-models/

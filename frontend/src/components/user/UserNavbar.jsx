@@ -38,8 +38,14 @@ import {
   Calendar,
   BarChart3,
   Compass,
-   CalendarDays,
+  Group,
+  GroupIcon,
+  Paperclip,
+  University,
+  BookUser,
+  ProjectorIcon,
 } from 'lucide-react';
+import { paperClasses } from '@mui/material';
 
 const UserNavbar = () => {
   const { user, logout } = useAuth();
@@ -126,17 +132,21 @@ const UserNavbar = () => {
         { name: 'Messages', href: '/user/messages', icon: MessageCircle, description: 'Chat with peers' },
       ]
     },
-{
-  name: 'Study Scheduler',
-  href: '/masss/dashboard',
-  icon: CalendarDays,
-},
+    {
+      name: 'workspace',
+      icon: University,
+      dropdown: [
+        { name: 'Workspace', href: '/user/workspace', icon: GroupIcon, description: 'get a quick daily summary' },
+        { name: 'Projects', href: '/user/projects', icon: Paperclip, description: 'Track your projects' },
+        { name: 'Taskboard', href: '/user/taskboard', icon: BookMarked, description: 'track your tasks' },
+        
+      ]
+    },
     {
       name: 'Files',
       href: '/user/files',
       icon: FileText,
     },
-
   ];
 
   const isActive = (href) => location.pathname === href;
@@ -333,8 +343,6 @@ const UserNavbar = () => {
                           <User className="w-5 h-5 text-slate-500" />
                           <span>My Profile</span>
                         </Link>
-                        
-
                         <Link
                           to="/user/settings"
                           onClick={() => setUserMenuOpen(false)}
@@ -342,9 +350,7 @@ const UserNavbar = () => {
                         >
                           <Settings className="w-5 h-5 text-slate-500" />
                           <span>Settings</span>
-                        
                         </Link>
-                     
                         <Link
                           to="/user/billing"
                           onClick={() => setUserMenuOpen(false)}

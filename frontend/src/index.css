@@ -1,8 +1,5 @@
 @import 'tailwindcss';
 
-
-
-
 @keyframes blob {
   0%, 100% {
     transform: translate(0, 0) scale(1);
@@ -103,99 +100,4 @@ html {
 
 ::-webkit-scrollbar-thumb:hover {
   background: linear-gradient(to bottom, #0d9488, #0891b2);
-}
-
-/* ── MASSS scrollbar ──────────────────────────────────────────────── */
-.masss-scroll::-webkit-scrollbar {
-  width: 4px;
-}
-
-.masss-scroll::-webkit-scrollbar-track {
-  background: #F0FAF9;
-}
-
-.masss-scroll::-webkit-scrollbar-thumb {
-  background: #C7F0EB;
-  border-radius: 4px;
-}
-
-.masss-scroll::-webkit-scrollbar-thumb:hover {
-  background: #0FA89E;
-}
-
-
-
-/* ── MASSS Design Tokens ──────────────────────────────────────────────────
-   Defined once here — used everywhere as Tailwind classes:
-   bg-masss-bg        text-masss-heading    bg-masss-accent
-   border-masss-mint  text-masss-accent     bg-masss-mint
-   ──────────────────────────────────────────────────────────────────────── */
-@theme {
-  /* Backgrounds */
-  --color-masss-bg:      #F0FAF9;   /* light mint — page background         */
-  --color-masss-white:   #ffffff;   /* white — card/sidebar background      */
-
-  /* Text */
-  --color-masss-heading: #0D1B2A;   /* deep navy — headings, body text      */
-  --color-masss-muted:   #0D1B2A80; /* deep navy 50% — placeholder, subtle  */
-
-  /* Accent */
-  --color-masss-accent:  #0FA89E;   /* teal-green — buttons, icons, links   */
-
-  /* Badge / Border */
-  --color-masss-mint:    #C7F0EB;   /* mint — borders, badges, hover states */
-
-  /* Status */
-  --color-masss-danger:  #DC2626;   /* red — delete, logout hover only      */
-}
-
-/* ── MASSS scrollbar ──────────────────────────────────────────────────── */
-.masss-scroll::-webkit-scrollbar        { width: 4px; }
-.masss-scroll::-webkit-scrollbar-track  { background: #F0FAF9; }
-.masss-scroll::-webkit-scrollbar-thumb  { background: #C7F0EB; border-radius: 4px; }
-.masss-scroll::-webkit-scrollbar-thumb:hover { background: #0FA89E; }
-
-/* ── MASSS spinner ────────────────────────────────────────────────────── */
-.masss-spin { animation: masss-spinner 0.8s linear infinite; }
-@keyframes masss-spinner { to { transform: rotate(360deg); } }
-
-
-/* ── MASSS page fade in ───────────────────────────────────────────── */
-.masss-page-enter {
-  animation: masss-fadein 0.2s ease-out;
-}
-
-@keyframes masss-fadein {
-  from { opacity: 0; transform: translateY(6px); }
-  to   { opacity: 1; transform: translateY(0);   }
-}
-
-/* ── MASSS loading spinner ───────────────────────────────────────── */
-.masss-spin {
-  animation: masss-spinner 0.8s linear infinite;
-}
-
-@keyframes masss-spinner {
-  to { transform: rotate(360deg); }
-}
-
-
-/* Custom Thin Scrollbar */
-.overflow-y-auto::-webkit-scrollbar {
-  width: 4px;
-
-}
-.overflow-y-auto::-webkit-scrollbar-track {
-  background: transparent;
-  
-}
-.overflow-y-auto::-webkit-scrollbar-thumb {
-  /* background: #1e293b; slate-800 */
-  background: #b1dbd8;
-  border-radius: 10px;
-
-}
-.overflow-y-auto::-webkit-scrollbar-thumb:hover {
-  background: #334155; /* slate-700 */
- 
 }
