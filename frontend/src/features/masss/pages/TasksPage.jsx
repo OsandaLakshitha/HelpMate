@@ -1,6 +1,6 @@
 // src/features/masss/pages/TasksPage.jsx
 
-import React, { useState } from 'react'
+import React, { useState,useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { CheckSquare, Plus, Search, SlidersHorizontal, X } from 'lucide-react'
 import { PageWrapper, PageHeader, PageLoader, PageError, EmptyState } from '../components/layout/PageWrapper'
@@ -47,6 +47,10 @@ export default function TasksPage() {
     module_id: moduleFilter   || undefined,
     include_archived: true, 
   })
+
+  useEffect(() => {
+  refetch()
+}, [])
   const { modules } = useModules()
   const { focusActive, focusSessionId, focusTaskId } = useMasss()
 

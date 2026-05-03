@@ -1,295 +1,76 @@
-// frontend/src/features/masss/pages/FocusPage.jsx
+// frontend/src/features/masss/pages/DashboardPage.jsx
 
-import React, { useState, useEffect } from 'react'
-import { useParams, useNavigate, useLocation } from 'react-router-dom'
-import { cn } from '../utils/cn'
-import { useTasks } from '../hooks/useTasks'
-import { useSessions } from '../hooks/useSessions'
-import { useMasss } from '../context/MasssContext'
-import { SessionSidebar } from '../components/focus/SessionSidebar'
-import { PomoSession }    from '../components/focus/PomoSession'
-import {
-  MODE,
-  WORK_DURATION, SHORT_BREAK, LONG_BREAK, SESSIONS_BEFORE_LONG,
-} from '../components/focus/constants'
+import React from 'react'
+import { useNavigate } from 'react-router-dom'
+import { PageWrapper, PageLoader } from '../components/layout/PageWrapper'
+import { useStateVector } from '../hooks/useStateVector'
+import { useDashboard }   from '../hooks/useDashboard'
+import { useSchedule }    from '../hooks/useSchedule'
+import { useProfile }     from '../hooks/useProfile'
+import { useModules }     from '../hooks/useModules'
+import { getCurrentSlot } from '../utils/slotUtils'
 
-export default function FocusPage() {
-  const { taskId: urlTaskId } = useParams()
-  const navigate = useNavigate()
-  const location = useLocation()
- const { tasks, updateTask } = useTasks()
-  const { startSession, endSession } = useSessions()
+import TodaysPlanCard   from '../components/dashboard/TodaysPlanCard'
+import EnvironmentCard  from '../components/dashboard/EnvironmentCard'
+import StudyProfileCard from '../components/dashboard/StudyProfileCard'
+import FocusStreakCard  from '../components/dashboard/FocusStreakCard'
 
-  const {
-    focusMode: mode, setFocusMode: setMode,
-    focusSeconds: seconds, setFocusSeconds: setSeconds,
-    focusSessionId: sessionId, setFocusSessionId: setSessionId,
-    focusCompleted: completed, setFocusCompleted: setCompleted,
-    focusActive, setFocusActive,
-    focusTaskId, setFocusTaskId,
-    // Add to the useMasss destructure
-focusTaskName, setFocusTaskName,
-    resetFocusTimer,
-  } = useMasss()
+export default function DashboardPage() {
+  const navigate   = useNavigate()
+  const activeSlot = getCurrentSlot()
 
-  const [loading, setLoading] = useState(false)
-  const [starting, setStarting] = useState(false)
-  const [showResetConfirm, setShowResetConfirm] = useState(false)
+  const { stateVector, loading: svLoading } = useStateVector(activeSlot)
+  const { summary,    loading: sumLoading } = useDashboard()
+  const { rlSchedule, rlLoading }           = useSchedule(activeSlot)
+  const { preferences }                     = useProfile()
+  const { modules }                         = useModules()
 
-  // FIX 1: declared missing state — was calling setShowConflict without declaring it,
-  // causing a ReferenceError crash every time handleStart ran with an active session.
-  const [showConflict, setShowConflict] = useState(false)
-  useEffect(() => {
-  if ('Notification' in window && Notification.permission === 'default') {
-    Notification.requestPermission()
-  }
-}, [])
+  if (svLoading || sumLoading) return <PageLoader />
 
-  // --- SESSION COUNT & SCOPE LOGIC ---
-  const activeTaskId = urlTaskId || focusTaskId
-  const task = tasks.find(t => t._id === activeTaskId)
-
-  const completedSessions = (task?.sessionsCount || 0) + completed
-  const currentWorkSessionNum = completedSessions + 1
-
-  const totalSessions = Math.max(
-    task?.estimatedPomodoros || 0,
-    currentWorkSessionNum
-  )
-
-  const isOvertime = currentWorkSessionNum > (task?.estimatedPomodoros || 0)
-  const isBreakMode = mode === MODE.BREAK
-
-  // FIX 2: off-by-one error in nextBreakIsLong.
-  // handleContinue calls setCompleted(c => c + 1) before BREAK_PROMPT renders,
-  // so completedSessions already reflects the just-finished session.
-  // The old (completedSessions + 1) % 4 was one session ahead, meaning:
-  //   session 3 triggered long break ❌, session 4 triggered short break ❌
-  // Correct formula simply checks if completedSessions is a clean multiple of 4.
-  // The > 0 guard prevents a false long-break trigger on first load (0 % 4 === 0).
-  const nextBreakIsLong = completedSessions > 0 && completedSessions % SESSIONS_BEFORE_LONG === 0
-  const breakTotal = nextBreakIsLong ? LONG_BREAK : SHORT_BREAK
- 
-
-  // --- TIMER EFFECT ---
-//   useEffect(() => {
-//     if (mode !== MODE.RUNNING && mode !== MODE.BREAK) return
-//      if (mode === MODE.RUNNING && seconds >= WORK_DURATION) {
-//   setMode(MODE.FEEDBACK)
-//   playDone()
-
-//   fireNotification(
-//     '🎉 Session complete!',
-//     `Great work on "${task?.name || 'your task'}". How was your focus?`
-//   )
-// }
-//    if (mode === MODE.BREAK && seconds >= breakTotal) {
-//   setSeconds(0)
-//   setMode(MODE.LOBBY)
-//   fireNotification(
-//     '⏰ Break over!',
-//     'Time to get back to work. Click to resume your session.'
-//   )
-// }
-//   }, [seconds, mode, breakTotal, setMode, setSeconds])
-
-  // Guard: if navigated to a different task while a session is already active,
-// block the switch and show the conflict modal instead.
-useEffect(() => {
-  if (urlTaskId && focusActive && sessionId && urlTaskId !== focusTaskId) {
-    setShowConflict(true)
-  }
-}, [urlTaskId, focusActive, sessionId, focusTaskId])
-
-useEffect(() => {
-  if (location.state?.conflictRedirect) {
-    setShowConflict(true)
-    navigate(location.pathname, { replace: true, state: null })
-  }
-}, [location.state, location.pathname, navigate])
-
-
-
-
-  // --- ACTIONS ---
-//   const fireNotification = (title, body) => {
-//   if (!('Notification' in window) || Notification.permission !== 'granted') return
-//   const n = new Notification(title, {
-//     body,
-//     icon: '/favicon.ico',
-//     tag:  'masss-session',   // replaces previous notification instead of stacking
-//   })
-//   n.onclick = () => {
-//     window.focus()
-//     navigate(`/masss/focus/${activeTaskId}`)
-//     n.close()
-//   }
-// }
-
-  const handleStart = async () => {
-    if (focusActive && sessionId) {
-      // FIX 1 (cont): now correctly calls the declared setter
-      setShowConflict(true)
-      return
-    }
-    if (starting || !activeTaskId) return
-    try {
-      setStarting(true)
-      const s = await startSession(activeTaskId)
-      setSessionId(s._id)
-      setFocusTaskId(activeTaskId)
-      setFocusTaskName(task?.name || '')
-      setFocusActive(true)
-      setSeconds(0)
-      setMode(MODE.RUNNING)
-    } catch (err) {
-      console.error('[FocusPage] Start error:', err.message)
-    } finally {
-      setStarting(false)
-    }
-  }
-
-  const handleStop = () => setMode(MODE.FEEDBACK)
-
-  const handleRestart = async () => {
-    setShowResetConfirm(false)
-    if (sessionId) {
-      await endSession(sessionId, { end_type: 'aborted', focus_rating: 1 })
-    }
-    try {
-      setStarting(true)
-      const s = await startSession(activeTaskId)
-      setSessionId(s._id)
-      setFocusTaskId(activeTaskId)
-      setFocusActive(true)
-      setSeconds(0)
-      setMode(MODE.RUNNING)
-    } catch (err) {
-      console.error('[FocusPage] Restart error:', err.message)
-    } finally {
-      setStarting(false)
-    }
-  }
-
-  // --- FEEDBACK HANDLERS ---
-
-  const endWith = async (endType, rating, afterFn) => {
-    try {
-      setLoading(true)
-      await endSession(sessionId, { end_type: endType, focus_rating: rating })
-      afterFn()
-    } catch (err) {
-      console.error('[FocusPage] End error:', err.message)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleContinue = (rating) =>
-    endWith('completed', rating, () => {
-      setCompleted(c => c + 1)
-      setSessionId(null)
-      setSeconds(0)
-      setMode(MODE.BREAK_PROMPT)
-    })
-
- const handleCompleteTask = (rating) =>
-    endWith('completed', rating, async () => {
-      if (activeTaskId) {
-        await updateTask(activeTaskId, { status: 'completed' })
-      }
-      resetFocusTimer()
-      navigate('/masss/tasks')
-    })
-
-  const handleStopForNow = (rating) =>
-    endWith('completed', rating, () => {
-      resetFocusTimer()
-      navigate('/masss/sessions')
-    })
-
-  const handleDiscard = () =>
-    endWith('aborted', 1, () => {
-      setSessionId(null)
-      setSeconds(0)
-      setFocusActive(false)
-      setMode(MODE.LOBBY)
-    })
-
-  const handleAcceptBreak = () => { setSeconds(0); setMode(MODE.BREAK) }
-  const handleSkipBreak   = () => { setSeconds(0); handleStart() }
-
-  const onConflictDismiss = () => {
-  setShowConflict(false)
-  navigate(`/masss/focus/${focusTaskId}`) // send them back to the active session
-}
-
-const playDone = () => {
-  try {
-    const ctx = new AudioContext()
-    const osc = ctx.createOscillator()
-    const gain = ctx.createGain()
-    osc.connect(gain)
-    gain.connect(ctx.destination)
-    osc.frequency.value = 880
-    gain.gain.setValueAtTime(0.3, ctx.currentTime)
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.8)
-    osc.start(ctx.currentTime)
-    osc.stop(ctx.currentTime + 0.8)
-  } catch (e) {}
-}
-
-
-  
+  const slotLabels = stateVector?.slot_labels ?? {}
 
   return (
-    <div className={cn(
-      "h-full w-full p-4 flex box-border text-white font-sans transition-colors duration-1000 overflow-hidden",
-      isBreakMode ? "bg-slate-900" : "bg-[#0D1B2A]"
-    )}>
+    <PageWrapper>
+      {/* Date header */}
+      <div className="mb-6 px-1">
+        <p className="text-[10px] text-masss-accent uppercase tracking-widest font-bold mb-0.5">
+          ✦ MASSS
+        </p>
+        <h1 className="text-2xl font-bold text-masss-heading">
+          {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+        </h1>
+      </div>
 
-      <SessionSidebar
-        totalSessions={totalSessions}
-        currentSessionNum={currentWorkSessionNum}
-        mode={mode}
-      />
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
 
-      <PomoSession
-        mode={mode}
-        seconds={seconds}
-        task={task}
-        starting={starting}
-        activeTaskId={activeTaskId}
-        loading={loading}
-        isBreakMode={isBreakMode}
-        nextBreakIsLong={nextBreakIsLong}
-        breakTotal={breakTotal}
-        currentWorkSessionNum={currentWorkSessionNum}
-        totalSessions={totalSessions}
-        isOvertime={isOvertime}
-        completedSessions={completedSessions}
+        {/* Card 1 — Today's Plan (wide) */}
+        <TodaysPlanCard
+          rlSchedule={rlSchedule}
+          rlLoading={rlLoading}
+          activeSlot={activeSlot}
+          slotLabels={slotLabels}
+          onNavigate={navigate}
+        />
 
-        showResetConfirm={showResetConfirm}
-        setShowResetConfirm={setShowResetConfirm}
-        showConflict={showConflict}
-        setShowConflict={setShowConflict}
-        onConflictDismiss={onConflictDismiss}
+        {/* Card 2 — AI Environment Signals */}
+        <EnvironmentCard
+          stateVector={stateVector}
+          onNavigate={navigate}
+        />
 
-        handleStart={handleStart}
-        handleStop={handleStop}
-        handleRestart={handleRestart}
-        handleContinue={handleContinue}
-        handleCompleteTask={handleCompleteTask}
-        handleStopForNow={handleStopForNow}
-        handleDiscard={handleDiscard}
-        handleAcceptBreak={handleAcceptBreak}
-        handleSkipBreak={handleSkipBreak}
-        setMode={setMode}
+        {/* Card 3 — Study Profile */}
+        <StudyProfileCard
+          preferences={preferences}
+          modules={modules}
+          onNavigate={navigate}
+        />
 
-        navigate={navigate}
-      />
+        {/* Card 4 — Focus Streak (wide) */}
+        <FocusStreakCard
+          summary={summary}
+        />
 
-
-    </div>
+      </div>
+    </PageWrapper>
   )
 }
