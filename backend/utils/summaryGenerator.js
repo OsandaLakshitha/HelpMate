@@ -3,6 +3,9 @@ const axios = require('axios');
 
 const AI_SERVER_URL = process.env.AI_SERVER_URL || 'http://localhost:4000';
 
+// FIX: Summarizer on CPU needs more time — was 30s, now 90s
+const SUMMARY_TIMEOUT_MS = 90000;
+
 /**
  * Generate a single summary from a text chunk
  */
@@ -11,7 +14,7 @@ async function generateSingleSummary(text) {
         const response = await axios.post(
             `${AI_SERVER_URL}/generate-summary`,
             { text },
-            { timeout: 30000 }
+            { timeout: SUMMARY_TIMEOUT_MS }  // FIX: was 30000
         );
 
         if (response.data?.summary) {
@@ -19,7 +22,11 @@ async function generateSingleSummary(text) {
         }
         return null;
     } catch (err) {
-        console.error('Summary generation error:', err.message);
+        if (err.code === 'ECONNABORTED') {
+            console.error(`Summary generation error: timed out after ${SUMMARY_TIMEOUT_MS / 1000}s`);
+        } else {
+            console.error('Summary generation error:', err.message);
+        }
         return null;
     }
 }
@@ -119,6 +126,8 @@ function extractExamples(text) {
 
 /**
  * Generate AI-powered short notes from extracted text
+ * FIX: Summaries now run sequentially (not in parallel) to avoid CPU overload,
+ * and are capped at 4 chunks so the total wait is manageable.
  */
 async function generateShortNotes(extractedText, maxSummaries = 10) {
     console.log('\n📝 ========== AI SUMMARY GENERATION ==========');
@@ -135,25 +144,29 @@ async function generateShortNotes(extractedText, maxSummaries = 10) {
     const chunks = createSummaryChunks(extractedText, 200);
     console.log(`📚 Created ${chunks.length} text chunks`);
 
-    // Select chunks to process (spread across the document)
+    // FIX: Cap at 4 summaries on CPU — each takes ~20-30s, so 4 = ~2 minutes max
+    const MAX_AI_SUMMARIES = 4;
     const chunksToProcess = [];
-    const step = Math.max(1, Math.floor(chunks.length / maxSummaries));
-    for (let i = 0; i < chunks.length && chunksToProcess.length < maxSummaries; i += step) {
+    const step = Math.max(1, Math.floor(chunks.length / Math.min(maxSummaries, MAX_AI_SUMMARIES)));
+    for (let i = 0; i < chunks.length && chunksToProcess.length < MAX_AI_SUMMARIES; i += step) {
         chunksToProcess.push(chunks[i]);
     }
 
-    console.log(`⚙️ Processing ${chunksToProcess.length} chunks...`);
+    console.log(`⚙️ Processing ${chunksToProcess.length} chunks (sequential, CPU-safe)...`);
 
     // Generate summaries
     const summaries = [];
 
     if (aiAvailable) {
-        // Use AI model
+        // FIX: Run sequentially, not in parallel — parallel requests jam the CPU
         for (let i = 0; i < chunksToProcess.length; i++) {
+            console.log(`   ⏳ Summary ${i + 1}/${chunksToProcess.length}...`);
             const summary = await generateSingleSummary(chunksToProcess[i]);
             if (summary) {
                 summaries.push(summary);
-                console.log(`   ✅ Summary ${i + 1}: ${summary.substring(0, 50)}...`);
+                console.log(`   ✅ Summary ${i + 1}: ${summary.substring(0, 60)}...`);
+            } else {
+                console.log(`   ⚠️ Summary ${i + 1}: failed or timed out, skipping`);
             }
         }
         console.log(`\n📊 Generated ${summaries.length} AI summaries`);
@@ -161,7 +174,7 @@ async function generateShortNotes(extractedText, maxSummaries = 10) {
         console.log('⚠️ AI not available, using extractive summarization');
     }
 
-    // Extract definitions and examples (always do this)
+    // Extract definitions and examples (always do this — it's fast)
     const definitions = extractDefinitions(extractedText);
     const examples = extractExamples(extractedText);
 
@@ -171,7 +184,6 @@ async function generateShortNotes(extractedText, maxSummaries = 10) {
     // Build sections
     const sections = [];
 
-    // AI-generated summaries or key points
     if (summaries.length > 0) {
         sections.push({
             title: '🤖 AI Summary',
@@ -180,7 +192,6 @@ async function generateShortNotes(extractedText, maxSummaries = 10) {
         });
     }
 
-    // Key points (extractive)
     const keyPoints = extractKeyPoints(extractedText, 10);
     if (keyPoints.length > 0) {
         sections.push({
@@ -190,7 +201,6 @@ async function generateShortNotes(extractedText, maxSummaries = 10) {
         });
     }
 
-    // Definitions
     if (definitions.length > 0) {
         sections.push({
             title: '📖 Definitions',
@@ -199,7 +209,6 @@ async function generateShortNotes(extractedText, maxSummaries = 10) {
         });
     }
 
-    // Examples
     if (examples.length > 0) {
         sections.push({
             title: '💡 Examples',
@@ -208,8 +217,7 @@ async function generateShortNotes(extractedText, maxSummaries = 10) {
         });
     }
 
-    // Create overall summary
-    const overallSummary = summaries.length > 0 
+    const overallSummary = summaries.length > 0
         ? summaries.slice(0, 3).join(' ')
         : keyPoints.slice(0, 3).join(' ');
 
@@ -248,7 +256,6 @@ function extractKeyPoints(text, maxPoints = 10) {
         .map(s => s.trim())
         .filter(s => s.length > 30 && s.length < 350);
 
-    // Score sentences
     const scoredSentences = sentences.map(sentence => {
         let score = 0;
         const lower = sentence.toLowerCase();
@@ -257,20 +264,15 @@ function extractKeyPoints(text, maxPoints = 10) {
             if (lower.includes(phrase)) score += 2;
         });
 
-        // Bonus for numbers/data
         if (/\d+/.test(sentence)) score += 1;
-
-        // Bonus for proper nouns
         if (/[A-Z][a-z]+\s+[A-Z][a-z]+/.test(sentence)) score += 1;
 
-        // Optimal length bonus
         const words = sentence.split(' ').length;
         if (words >= 12 && words <= 35) score += 1;
 
         return { sentence, score };
     });
 
-    // Sort by score and get top points
     scoredSentences.sort((a, b) => b.score - a.score);
 
     return scoredSentences
@@ -289,27 +291,13 @@ function generateBasicShortNotes(text) {
     const sections = [];
 
     if (keyPoints.length > 0) {
-        sections.push({
-            title: '📌 Key Points',
-            type: 'key_points',
-            items: keyPoints
-        });
+        sections.push({ title: '📌 Key Points', type: 'key_points', items: keyPoints });
     }
-
     if (definitions.length > 0) {
-        sections.push({
-            title: '📖 Definitions',
-            type: 'definitions',
-            items: definitions
-        });
+        sections.push({ title: '📖 Definitions', type: 'definitions', items: definitions });
     }
-
     if (examples.length > 0) {
-        sections.push({
-            title: '💡 Examples',
-            type: 'examples',
-            items: examples
-        });
+        sections.push({ title: '💡 Examples', type: 'examples', items: examples });
     }
 
     const summary = keyPoints.slice(0, 3).join(' ');
