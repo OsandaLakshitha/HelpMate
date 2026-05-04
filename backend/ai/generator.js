@@ -3,6 +3,10 @@ const axios = require('axios');
 
 const AI_SERVER_URL = 'http://localhost:4000';
 
+// CPU inference is slow — give each request enough time
+const MCQ_TIMEOUT_MS = 120000; 
+const BATCH_SIZE = 2;          
+
 /**
  * Extract sentences from text
  */
@@ -71,10 +75,8 @@ function createDiverseChunks(text) {
         });
     }
     
-    // Shuffle chunks
+    // Shuffle then sort by priority
     shuffleArray(chunks);
-    
-    // Sort by priority
     chunks.sort((a, b) => a.priority - b.priority);
     
     console.log(`📚 Created ${chunks.length} diverse chunks`);
@@ -107,8 +109,7 @@ function isSimilar(q1, q2, threshold = 0.5) {
     const intersection = [...words1].filter(w => words2.has(w)).length;
     const union = new Set([...words1, ...words2]).size;
     
-    const similarity = intersection / union;
-    return similarity > threshold;
+    return intersection / union > threshold;
 }
 
 /**
@@ -157,7 +158,7 @@ async function generateSingleMCQ(chunkText) {
         const response = await axios.post(
             `${AI_SERVER_URL}/generate-single`,
             { text: chunkText },
-            { timeout: 30000 }
+            { timeout: MCQ_TIMEOUT_MS }  // FIX: was 30s, now 2 minutes
         );
         
         if (response.data && response.data.mcq) {
@@ -165,17 +166,28 @@ async function generateSingleMCQ(chunkText) {
         }
         return null;
     } catch (error) {
+        if (error.code === 'ECONNABORTED') {
+            console.warn(`   ⚠️ MCQ request timed out after ${MCQ_TIMEOUT_MS / 1000}s`);
+        }
         return null;
     }
 }
 
 /**
- * Generate MCQs in parallel batches
+ * Generate MCQs in sequential-friendly batches
+ * FIX: Reduced batch size from 5 → 2 to avoid overwhelming CPU inference
+ * and stop early once we have enough questions
  */
-async function generateBatch(chunks, batchSize = 5) {
+async function generateBatch(chunks, targetCount, batchSize = BATCH_SIZE) {
     const results = [];
     
     for (let i = 0; i < chunks.length; i += batchSize) {
+        // Stop early if we already have enough
+        if (results.length >= targetCount) {
+            console.log(`   ✅ Reached target of ${targetCount} MCQs, stopping early`);
+            break;
+        }
+
         const batch = chunks.slice(i, i + batchSize);
         
         const promises = batch.map(chunk => generateSingleMCQ(chunk.text));
@@ -187,7 +199,7 @@ async function generateBatch(chunks, batchSize = 5) {
             }
         }
         
-        console.log(`   Batch ${Math.floor(i/batchSize) + 1}: ${results.length} valid MCQs so far`);
+        console.log(`   Batch ${Math.floor(i / batchSize) + 1}: ${results.length} valid MCQs so far`);
     }
     
     return results;
@@ -201,6 +213,7 @@ async function generateMCQs(extractedText, numQuestions = 20) {
     console.log('🎯 MCQ Generation Started');
     console.log(`📝 Input: ${extractedText.split(/\s+/).length} words`);
     console.log(`🎯 Target: ${numQuestions} unique questions`);
+    console.log(`⚙️ Batch size: ${BATCH_SIZE} (CPU mode — avoids timeout)`);
     console.log('='.repeat(60));
     
     const startTime = Date.now();
@@ -221,13 +234,13 @@ async function generateMCQs(extractedText, numQuestions = 20) {
         throw new Error('Could not create text chunks. Text might be too short.');
     }
     
-    // Limit chunks to process
-    const chunksToProcess = chunks.slice(0, Math.min(chunks.length, numQuestions * 3));
+    // Limit chunks: try at most (numQuestions * 2) chunks so we don't run forever
+    const chunksToProcess = chunks.slice(0, Math.min(chunks.length, numQuestions * 2));
     
-    console.log(`\n⚙️ Processing ${chunksToProcess.length} chunks...`);
+    console.log(`\n⚙️ Processing up to ${chunksToProcess.length} chunks (batch size: ${BATCH_SIZE})...`);
     
     // Generate MCQs in parallel batches
-    const allMCQs = await generateBatch(chunksToProcess, 5);
+    const allMCQs = await generateBatch(chunksToProcess, numQuestions, BATCH_SIZE);
     
     console.log(`\n📊 Generated ${allMCQs.length} valid MCQs`);
     
