@@ -20,7 +20,6 @@ export default function NoteDetail() {
     const [currentQuestion, setCurrentQuestion] = useState(0);
     const [userAnswers, setUserAnswers] = useState({});
     const [showResults, setShowResults] = useState(false);
-    const [showResults, setShowResults] = useState(false);
     const [score, setScore] = useState(0);
     const [reviewMode, setReviewMode] = useState(false);
     const [reviewFilter, setReviewFilter] = useState('all');
